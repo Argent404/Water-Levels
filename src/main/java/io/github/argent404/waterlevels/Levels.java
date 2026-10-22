@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 /**
  * Reading, editing, saving and syncing water levels.
@@ -143,17 +144,18 @@ public final class Levels {
 
 	/**
 	 * Wand right-click: adds water with {@link #waterlog}, then sets {@code level} (0 clears) on all
-	 * still water at the same height within {@code radius}. Returns whether anything changed.
+	 * still water at the same height within {@code radius}. Blocks {@code allowed} rejects are left
+	 * alone. Returns whether anything changed.
 	 */
-	public static boolean apply(ServerLevel world, BlockPos center, int level, int radius) {
-		boolean watered = waterlog(world, center, true, radius) > 0;
+	public static boolean apply(ServerLevel world, BlockPos center, int level, int radius, Predicate<BlockPos> allowed) {
+		boolean watered = waterlog(world, center, true, radius, allowed) > 0;
 		if (!world.getFluidState(center).is(Fluids.WATER)) return watered;
 		Map<LevelChunk, List<BlockPos>> byChunk = new HashMap<>();
 		for (int dx = 1 - radius; dx < radius; dx++) {
 			for (int dz = 1 - radius; dz < radius; dz++) {
 				if (dx * dx + dz * dz >= radius * radius) continue;
 				BlockPos pos = center.offset(dx, 0, dz);
-				if (world.getFluidState(pos).is(Fluids.WATER)) byChunk.computeIfAbsent(world.getChunkAt(pos), c -> new ArrayList<>()).add(pos);
+				if (world.getFluidState(pos).is(Fluids.WATER) && allowed.test(pos)) byChunk.computeIfAbsent(world.getChunkAt(pos), c -> new ArrayList<>()).add(pos);
 			}
 		}
 		return store(world, byChunk, level) > 0 || watered;
@@ -162,9 +164,10 @@ public final class Levels {
 	/**
 	 * Waterlogs ({@code add}) or drains every block in a bowl (lower half-sphere) of {@code radius}
 	 * below {@code center}. On the top layer, air becomes water when adding and water becomes air
-	 * when removing. No neighbour updates, so nothing starts to flow. Returns the number of blocks changed.
+	 * when removing. No neighbour updates, so nothing starts to flow. Blocks {@code allowed} rejects
+	 * are left alone. Returns the number of blocks changed.
 	 */
-	public static int waterlog(ServerLevel world, BlockPos center, boolean add, int radius) {
+	public static int waterlog(ServerLevel world, BlockPos center, boolean add, int radius, Predicate<BlockPos> allowed) {
 		int changed = 0, r2 = radius * radius;
 		for (int dy = 0; dy > -radius; dy--) {
 			for (int dx = 1 - radius; dx < radius; dx++) {
@@ -179,7 +182,7 @@ public final class Levels {
 						if (add && state.isAir()) next = Blocks.WATER.defaultBlockState();
 						else if (!add && state.is(Blocks.WATER)) next = Blocks.AIR.defaultBlockState();
 					}
-					if (next != null && world.setBlock(pos, next, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE)) changed++;
+					if (next != null && allowed.test(pos) && world.setBlock(pos, next, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE)) changed++;
 				}
 			}
 		}

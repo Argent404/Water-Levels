@@ -58,7 +58,7 @@ public class WaterLevels implements ModInitializer {
 			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
 			server.execute(() -> {
 				if (!mayEdit(server, player, pos)) return;
-				if (Levels.apply(player.serverLevel(), pos, level, radius)) {
+				if (Levels.apply(player.serverLevel(), pos, level, radius, p -> Protection.mayEdit(player, p))) {
 					player.playNotifySound(DRIP, SoundSource.BLOCKS, 1f, dripPitch(level));
 				} else if (!player.serverLevel().getFluidState(pos).is(Fluids.WATER)) {
 					player.displayClientMessage(Component.literal("This block can't hold water"), true);
@@ -70,7 +70,7 @@ public class WaterLevels implements ModInitializer {
 			BlockPos pos = buf.readBlockPos();
 			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
 			server.execute(() -> {
-				if (mayEdit(server, player, pos) && Levels.waterlog(player.serverLevel(), pos, false, radius) > 0) {
+				if (mayEdit(server, player, pos) && Levels.waterlog(player.serverLevel(), pos, false, radius, p -> Protection.mayEdit(player, p)) > 0) {
 					player.playNotifySound(SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 0.6f, 1f);
 				}
 			});
@@ -89,7 +89,8 @@ public class WaterLevels implements ModInitializer {
 
 	/**
 	 * Checks a wand edit: rate limit (one per player every 2 ticks), permission, holding the wand,
-	 * build rights, reach, and whether the player may edit at {@code pos}.
+	 * build rights, reach, and whether the player may edit the clicked block. Every other block the
+	 * brush reaches is checked again with {@link Protection#mayEdit}.
 	 */
 	private static boolean mayEdit(MinecraftServer server, ServerPlayer player, BlockPos pos) {
 		Integer last = LAST_APPLY.put(player, server.getTickCount());
@@ -98,8 +99,12 @@ public class WaterLevels implements ModInitializer {
 			player.displayClientMessage(Component.literal("You don't have permission to change water levels."), true);
 			return false;
 		}
-		return holdsWand(player) && player.getAbilities().mayBuild && pos.closerToCenterThan(player.getEyePosition(), 8)
-				&& player.serverLevel().mayInteract(player, pos);
+		if (!holdsWand(player) || !player.getAbilities().mayBuild || !pos.closerToCenterThan(player.getEyePosition(), 8)) return false;
+		if (!Protection.mayEdit(player, pos)) {
+			player.displayClientMessage(Component.literal("You can't change water here."), true);
+			return false;
+		}
+		return true;
 	}
 
 	/** Server tick of each player's last wand edit. */
