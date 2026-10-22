@@ -48,6 +48,11 @@ public abstract class SodiumFluidRendererMixin {
 	@Unique private boolean waterlevels$stepUp;
 	/** Lower water at least this high joins the step above it. */
 	@Unique private static final float WATERLEVELS_MEET = 0.8f;
+	/**
+	 * Lowest corner height returned. Sodium lowers exposed top corners by 0.001 and crashes on a
+	 * side face whose corners are both negative, so a corner must never be 0.
+	 */
+	@Unique private static final float WATERLEVELS_STEP_FLOOR = 0.01f;
 
 	@Inject(method = "render", at = @At("HEAD"))
 	private void waterlevels$begin(CallbackInfo ci, @Local(argsOnly = true) FluidState fluidState, @Local(argsOnly = true, ordinal = 0) BlockPos blockPos) {
@@ -113,7 +118,7 @@ public abstract class SodiumFluidRendererMixin {
 				else p.set(diagonal);
 				if (fluidHeight(world, fluid, p, Direction.UP) != 0) continue;
 				if (fluidHeight(world, fluid, p.move(Direction.DOWN), Direction.UP) >= WATERLEVELS_MEET) {
-					cir.setReturnValue(0.0f); // upper side of a step
+					cir.setReturnValue(WATERLEVELS_STEP_FLOOR); // upper side of a step
 					return;
 				}
 			}
