@@ -33,6 +33,12 @@ class LevelsFormatTest {
 	}
 
 	@Test
+	void readsTheOldPartialWaterKey() {
+		ChunkLevels levels = ChunkLevels.with(null, List.of(new BlockPos(4, 62, 9)), 3);
+		assertEquals(3, Levels.read(saved("partialwater:levels", levels)).get(4, 62, 9));
+	}
+
+	@Test
 	void chunksWithoutTheKeyHaveNoLevels() {
 		assertNull(Levels.read(new CompoundTag()));
 	}

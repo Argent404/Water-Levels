@@ -39,6 +39,9 @@ public final class Levels {
 	private Levels() {}
 
 	public static final String NBT_KEY = "waterlevels:levels";
+	/** Key used by builds released as Partial Water. */
+	private static final String LEGACY_NBT_KEY = "partialwater:levels";
+
 	/** Vanilla height of a still water surface. */
 	private static final float SOURCE_HEIGHT = 8 / 9.0f;
 
@@ -172,8 +175,10 @@ public final class Levels {
 
 	/** Reads levels written by {@link #write}; null if absent or malformed. */
 	public static ChunkLevels read(CompoundTag nbt) {
-		if (!nbt.contains(NBT_KEY, Tag.TAG_COMPOUND)) return null;
-		CompoundTag tag = nbt.getCompound(NBT_KEY);
+		String key = nbt.contains(NBT_KEY, Tag.TAG_COMPOUND) ? NBT_KEY
+				: nbt.contains(LEGACY_NBT_KEY, Tag.TAG_COMPOUND) ? LEGACY_NBT_KEY : null;
+		if (key == null) return null;
+		CompoundTag tag = nbt.getCompound(key);
 		return ChunkLevels.of(tag.getIntArray("Y").clone(), tag.getByteArray("L").clone());
 	}
 
