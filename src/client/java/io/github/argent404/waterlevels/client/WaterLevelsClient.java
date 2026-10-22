@@ -27,6 +27,7 @@ public class WaterLevelsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		WandKeys.register();
+		Floats.register();
 		LevelSync.register();
 
 		// Wand clicks are read from the use and attack keys at the start of the tick, before Minecraft

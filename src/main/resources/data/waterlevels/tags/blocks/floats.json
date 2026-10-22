@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:lily_pad",
+    { "id": "conquest:big_water_lilies", "required": false },
+    { "id": "conquest:white_water_lilies", "required": false },
+    { "id": "conquest:duckweed", "required": false },
+    { "id": "conquest:alpine_bearberry", "required": false },
+    { "id": "conquest:dark_green_sphagnum_moss", "required": false },
+    { "id": "conquest:green_sphagnum_moss", "required": false },
+    { "id": "conquest:red_sphagnum_moss", "required": false },
+    { "id": "conquest:yellow_sphagnum_moss", "required": false }
+  ]
+}

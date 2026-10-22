@@ -98,6 +98,12 @@ public final class Levels {
 		return level(Fluids.WATER, view, pos) > 0;
 	}
 
+	/** The stored level at {@code pos} as a height (level / 8), or -1 if none. */
+	public static float levelHeight(BlockGetter view, BlockPos pos) {
+		int level = level(Fluids.WATER, view, pos);
+		return level > 0 ? level / 8f : -1;
+	}
+
 	/**
 	 * The stored level (1-8) at {@code pos}, or 0. Never loads a chunk: getChunkNow returns null
 	 * for unloaded chunks, and on the server also off the server thread.
