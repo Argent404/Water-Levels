@@ -151,7 +151,7 @@ Negative loss in above tests indicates performance degradation is very minimal, 
 ## Server
 
 Profiled with spark on the ArdaCraft dev server (Random water level changing activity, 2 players, 5 minutes):
-Water Levels code took **0.09%** of the server thread. By action, all of this server thread (measurably) was dued to a single max radius fill command. Regular behaviour fell out of diagnostic range in spark. TPS/MSPT not statistically different.
+Water Levels code took **0.09%** of the server thread. By action, all of this server thread (measurably) was due to a single max radius fill command. Regular behaviour fell out of diagnostic range in spark. TPS/MSPT not statistically different.
 
 
 ## Storage
