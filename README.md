@@ -92,6 +92,10 @@ Without the mod (a vanilla server or a vanilla client) the key is unknown and si
 the world loads and plays as plain vanilla water, and the levels are still there when the mod
 comes back. Only the server reads and writes it; clients get levels over the network.
 
+
+<img width="1280" height="720" alt="layers" src="https://github.com/user-attachments/assets/058399f5-9736-4e71-a627-ed8c279910f1" />
+
+
 ## Design
 
 > A chunk may store a level 1..8 per block. It applies only where there is still
