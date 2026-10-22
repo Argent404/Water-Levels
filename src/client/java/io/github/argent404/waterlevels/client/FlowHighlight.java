@@ -4,19 +4,25 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import io.github.argent404.waterlevels.Levels;
 import io.github.argent404.waterlevels.WaterLevels;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import com.mojang.blaze3d.vertex.Tesselator;
+import net.minecraft.client.renderer.MultiBufferSource;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
@@ -35,6 +41,7 @@ import java.util.Set;
  * <ul>
  *   <li>flow view: flowing water (orange) and still water sloping into a different height (yellow);</li>
  *   <li>vanilla view: still surface water with no level yet (blue);</li>
+ *   <li>level view: every still surface, leveled tiles in green with their level number, vanilla tiles in blue.</li>
  * </ul>
  *
  * <p>Outlines are drawn as a grid one pixel above the water block, in plain GL lines (the vanilla
@@ -44,7 +51,7 @@ import java.util.Set;
 final class FlowHighlight {
 	private FlowHighlight() {}
 
-	enum Mode { OFF, FLOW, VANILLA }
+	enum Mode { OFF, FLOW, VANILLA, VIEW_LEVELS }
 
 	/** One outlined water block, with its colour and level (0 = none). */
 	private record Outline(int x, int y, int z, float[] rgb, int level) {}
@@ -60,8 +67,20 @@ final class FlowHighlight {
 	private static final float OUTLINE_HEIGHT = 1 + 1 / 32f;
 	/** Alpha of lines behind terrain. */
 	private static final float HIDDEN_ALPHA = 0.3f;
+	/** Level numbers are only drawn within this distance. */
+	private static final double LABEL_DISTANCE = 20;
 
-	private static final float[] ORANGE = {1f, 0.45f, 0.1f}, YELLOW = {1f, 0.9f, 0.1f}, BLUE = {0.25f, 0.55f, 1f};
+	private static final float[] ORANGE = {1f, 0.45f, 0.1f}, YELLOW = {1f, 0.9f, 0.1f}, BLUE = {0.25f, 0.55f, 1f}, DARK_BLUE = {0.15f, 0.35f, 0.8f};
+
+	/** Level view colours by level, from teal (1) to yellow-green (8). */
+	private static final float[][] LEVEL_GREENS = new float[9][];
+	static {
+		for (int n = 1; n <= 8; n++) {
+			float t = (n - 1) / 7f;
+			int rgb = Mth.hsvToRgb(0.51f - 0.34f * t, 0.9f, 0.55f + 0.45f * t);
+			LEVEL_GREENS[n] = new float[] {(rgb >> 16 & 255) / 255f, (rgb >> 8 & 255) / 255f, (rgb & 255) / 255f};
+		}
+	}
 
 	private static Mode mode = Mode.FLOW;
 	/** The last finished scan, which is what gets drawn. */
@@ -129,6 +148,8 @@ final class FlowHighlight {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableCull();
 			RenderSystem.disableBlend();
+
+			if (mode == Mode.VIEW_LEVELS) labels(context, current, cam);
 		});
 	}
 
@@ -153,6 +174,28 @@ final class FlowHighlight {
 		double scale = distance < 0.05 ? 1 : 1 - (0.01 + distance * 0.0006) / distance;
 		buffer.vertex(m, (float) (x * scale), (float) (y * scale), (float) (z * scale))
 				.color(c[i * 3], c[i * 3 + 1], c[i * 3 + 2], alpha).endVertex();
+	}
+
+	/** Draws each leveled tile's number above it, facing the camera. */
+	private static void labels(WorldRenderContext context, Drawn d, Vec3 cam) {
+		Minecraft client = Minecraft.getInstance();
+		Font text = client.font;
+		MultiBufferSource.BufferSource consumers = client.renderBuffers().bufferSource();
+		PoseStack matrices = context.matrixStack();
+		for (Outline o : d.tiles()) {
+			if (o.level() == 0) continue;
+			double x = o.x() + 0.5, y = o.y() + OUTLINE_HEIGHT + 0.25, z = o.z() + 0.5;
+			if (cam.distanceToSqr(x, y, z) > LABEL_DISTANCE * LABEL_DISTANCE) continue;
+			matrices.pushPose();
+			matrices.translate(x - cam.x, y - cam.y, z - cam.z);
+			matrices.mulPose(context.camera().rotation());
+			matrices.scale(-0.02f, -0.02f, 0.02f);
+			String s = Integer.toString(o.level());
+			text.drawInBatch(s, -text.width(s) / 2f, -4, 0xFFFFFFFF, false, matrices.last().pose(), consumers,
+					Font.DisplayMode.NORMAL, 0x60000000, LightTexture.FULL_BRIGHT);
+			matrices.popPose();
+		}
+		consumers.endBatch();
 	}
 
 	/**
@@ -197,6 +240,7 @@ final class FlowHighlight {
 			case OFF -> "Water outlines: off";
 			case FLOW -> "Water outlines: flow view (" + count + ")" + (first ? "  §6orange§r = flowing, §eyellow§r = still but sloping" : "");
 			case VANILLA -> "Water outlines: vanilla view (" + count + ")" + (first ? "  §9blue§r = no level set yet" : "");
+			case VIEW_LEVELS -> "Water outlines: level view (" + count + ")" + (first ? "  numbers = level in eighths (§2darker§r = lower), §1dark blue§r = vanilla" : "");
 		};
 		client.player.displayClientMessage(Component.literal(bar), true);
 	}
@@ -249,6 +293,12 @@ final class FlowHighlight {
 			}
 			case VANILLA -> {
 				return fluid.isSource() && level < 0 ? of(pos, BLUE, 0) : null;
+			}
+			case VIEW_LEVELS -> {
+				if (!fluid.isSource()) return null;
+				if (level < 0) return of(pos, DARK_BLUE, 0);
+				int n = Math.round(level * 8);
+				return of(pos, LEVEL_GREENS[n], n);
 			}
 			default -> {
 				return null;
