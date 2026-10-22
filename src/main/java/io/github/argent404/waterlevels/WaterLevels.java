@@ -1,6 +1,7 @@
 package io.github.argent404.waterlevels;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
@@ -74,6 +75,8 @@ public class WaterLevels implements ModInitializer {
 				}
 			});
 		});
+
+		ServerChunkEvents.CHUNK_LOAD.register(Levels::prune);
 
 		FillCommand.register();
 		WandCommand.register();

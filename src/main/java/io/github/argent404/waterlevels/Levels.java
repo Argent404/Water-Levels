@@ -10,6 +10,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.tags.FluidTags;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -32,6 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Reading, editing, saving and syncing water levels.
@@ -186,6 +189,32 @@ public final class Levels {
 					center.getX() + radius, center.getY(), center.getZ() + radius));
 		}
 		return changed;
+	}
+
+	/** Chunks pruned since the server started. */
+	private static final Map<ServerLevel, LongOpenHashSet> PRUNED = new WeakHashMap<>();
+
+	/**
+	 * Drops levels where there is no longer any water. Runs once per chunk per server run, when
+	 * the chunk first loads.
+	 */
+	public static void prune(ServerLevel world, LevelChunk chunk) {
+		ChunkLevels levels = ((WLChunk) chunk).waterlevels$levels();
+		if (levels == null || !PRUNED.computeIfAbsent(world, w -> new LongOpenHashSet()).add(chunk.getPos().toLong())) return;
+		List<BlockPos> dry = new ArrayList<>();
+		int x0 = chunk.getPos().getMinBlockX(), z0 = chunk.getPos().getMinBlockZ();
+		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+		for (int y : levels.ys) {
+			for (int cell = 0; cell < 256; cell++) {
+				int x = x0 + (cell & 15), z = z0 + (cell >> 4);
+				if (levels.get(x, y, z) == 0) continue;
+				if (!chunk.getFluidState(pos.set(x, y, z)).is(FluidTags.WATER)) dry.add(pos.immutable());
+			}
+		}
+		if (dry.isEmpty()) return;
+		((WLChunk) chunk).waterlevels$setLevels(ChunkLevels.with(levels, dry, 0));
+		chunk.setUnsaved(true);
+		for (ServerPlayer player : PlayerLookup.tracking(world, chunk.getPos())) send(player, chunk);
 	}
 
 	/**
