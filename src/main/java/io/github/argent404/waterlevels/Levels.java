@@ -128,7 +128,7 @@ public final class Levels {
 	 * still water at the same height within {@code radius}. Returns whether anything changed.
 	 */
 	public static boolean apply(ServerLevel world, BlockPos center, int level, int radius) {
-		boolean watered = waterlog(world, center, radius) > 0;
+		boolean watered = waterlog(world, center, true, radius) > 0;
 		if (!world.getFluidState(center).is(Fluids.WATER)) return watered;
 		Map<LevelChunk, List<BlockPos>> byChunk = new HashMap<>();
 		for (int dx = 1 - radius; dx < radius; dx++) {
@@ -142,11 +142,11 @@ public final class Levels {
 	}
 
 	/**
-	 * Waterlogs every block in a bowl (lower half-sphere) of {@code radius} below {@code center}, and
-	 * fills air on the top layer with still water. No neighbour updates, so nothing starts to flow.
-	 * Returns the number of blocks changed.
+	 * Waterlogs ({@code add}) or drains every block in a bowl (lower half-sphere) of {@code radius}
+	 * below {@code center}. On the top layer, air becomes water when adding and water becomes air
+	 * when removing. No neighbour updates, so nothing starts to flow. Returns the number of blocks changed.
 	 */
-	public static int waterlog(ServerLevel world, BlockPos center, int radius) {
+	public static int waterlog(ServerLevel world, BlockPos center, boolean add, int radius) {
 		int changed = 0, r2 = radius * radius;
 		for (int dy = 0; dy > -radius; dy--) {
 			for (int dx = 1 - radius; dx < radius; dx++) {
@@ -156,16 +156,17 @@ public final class Levels {
 					BlockState state = world.getBlockState(pos);
 					BlockState next = null;
 					if (state.hasProperty(BlockStateProperties.WATERLOGGED)) {
-						if (!state.getValue(BlockStateProperties.WATERLOGGED)) next = state.setValue(BlockStateProperties.WATERLOGGED, true);
-					} else if (dy == 0 && state.isAir()) {
-						next = Blocks.WATER.defaultBlockState();
+						if (state.getValue(BlockStateProperties.WATERLOGGED) != add) next = state.setValue(BlockStateProperties.WATERLOGGED, add);
+					} else if (dy == 0) {
+						if (add && state.isAir()) next = Blocks.WATER.defaultBlockState();
+						else if (!add && state.is(Blocks.WATER)) next = Blocks.AIR.defaultBlockState();
 					}
 					if (next != null && world.setBlock(pos, next, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE)) changed++;
 				}
 			}
 		}
 		// Placed water schedules its own flow tick; cancel it so it stays still.
-		if (changed > 0) {
+		if (add && changed > 0) {
 			world.getFluidTicks().clearArea(new BoundingBox(center.getX() - radius, center.getY() - radius, center.getZ() - radius,
 					center.getX() + radius, center.getY(), center.getZ() + radius));
 		}

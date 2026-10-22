@@ -32,12 +32,15 @@ public class WaterLevelsClient implements ClientModInitializer {
 		LevelSync.register();
 
 		// Wand clicks are read from the use and attack keys at the start of the tick, before Minecraft
-		// (or mods like Axiom) handle them. Right-click applies, modifier + right-click cycles the level.
+		// (or mods like Axiom) handle them. Right-click applies, modifier + right-click cycles the level,
+		// left-click removes water.
 		ClientTickEvents.START_CLIENT_TICK.register(client -> {
 			if (client.player == null || client.screen != null || !client.player.getMainHandItem().is(WaterLevels.WATER_WAND)) return;
-			boolean used = false;
+			boolean used = false, attacked = false;
 			while (client.options.keyUse.consumeClick()) used = true;
+			while (client.options.keyAttack.consumeClick()) attacked = true;
 			if (used) use(client);
+			if (attacked) remove(client);
 		});
 		// Cancel the vanilla use/attack/break that holding a button would otherwise trigger.
 		UseBlockCallback.EVENT.register((player, world, hand, hit) ->
@@ -65,7 +68,7 @@ public class WaterLevelsClient implements ClientModInitializer {
 
 	static void help(Minecraft client) {
 		if (client.player == null) return;
-		client.player.displayClientMessage(Component.literal("Right-click: water   "
+		client.player.displayClientMessage(Component.literal("Right-click: water   Left-click: remove water   "
 				+ WandKeys.levelName() + " + right-click: level   " + WandKeys.radiusName() + " + scroll: radius"), true);
 	}
 
@@ -98,6 +101,16 @@ public class WaterLevelsClient implements ClientModInitializer {
 		buf.writeByte(level);
 		buf.writeByte(radius);
 		ClientPlayNetworking.send(WaterLevels.APPLY_PACKET, buf);
+		client.player.swing(InteractionHand.MAIN_HAND);
+	}
+
+	private static void remove(Minecraft client) {
+		BlockPos pos = target(client);
+		if (pos == null) return;
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		buf.writeBlockPos(pos);
+		buf.writeByte(radius);
+		ClientPlayNetworking.send(WaterLevels.REMOVE_PACKET, buf);
 		client.player.swing(InteractionHand.MAIN_HAND);
 	}
 

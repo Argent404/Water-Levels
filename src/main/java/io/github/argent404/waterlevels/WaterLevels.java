@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.resources.ResourceLocation;
@@ -31,6 +32,8 @@ public class WaterLevels implements ModInitializer {
 	public static final ResourceLocation LEVELS_PACKET = new ResourceLocation(MOD_ID, "levels");
 	/** Client to server: wand right-click (position, level, radius). */
 	public static final ResourceLocation APPLY_PACKET = new ResourceLocation(MOD_ID, "apply");
+	/** Client to server: wand left-click (position, radius). */
+	public static final ResourceLocation REMOVE_PACKET = new ResourceLocation(MOD_ID, "remove");
 	public static final int MAX_RADIUS = 5;
 
 	/** Feedback sound for wand edits, pitched by level. */
@@ -58,6 +61,16 @@ public class WaterLevels implements ModInitializer {
 					player.playNotifySound(DRIP, SoundSource.BLOCKS, 1f, dripPitch(level));
 				} else if (!player.serverLevel().getFluidState(pos).is(Fluids.WATER)) {
 					player.displayClientMessage(Component.literal("This block can't hold water"), true);
+				}
+			});
+		});
+
+		ServerPlayNetworking.registerGlobalReceiver(REMOVE_PACKET, (server, player, handler, buf, sender) -> {
+			BlockPos pos = buf.readBlockPos();
+			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
+			server.execute(() -> {
+				if (mayEdit(server, player, pos) && Levels.waterlog(player.serverLevel(), pos, false, radius) > 0) {
+					player.playNotifySound(SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 0.6f, 1f);
 				}
 			});
 		});
