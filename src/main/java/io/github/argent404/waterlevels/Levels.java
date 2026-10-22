@@ -1,11 +1,15 @@
 package io.github.argent404.waterlevels;
 
 import io.github.argent404.waterlevels.duck.WLChunk;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -79,4 +83,23 @@ public final class Levels {
 		CompoundTag tag = nbt.getCompound(NBT_KEY);
 		return ChunkLevels.of(tag.getIntArray("Y").clone(), tag.getByteArray("L").clone());
 	}
+
+	/** Sends a chunk's levels to a player, replacing what the client had. */
+	public static void send(ServerPlayer player, LevelChunk chunk) {
+		ChunkLevels levels = ((WLChunk) chunk).waterlevels$levels();
+		FriendlyByteBuf buf = PacketByteBufs.create();
+		buf.writeChunkPos(chunk.getPos());
+		buf.writeVarIntArray(levels == null ? new int[0] : levels.ys);
+		buf.writeByteArray(levels == null ? new byte[0] : levels.data);
+		ServerPlayNetworking.send(player, WaterLevels.LEVELS_PACKET, buf);
+	}
+
+	/** Reads a packet from {@link #send}. Sizes are capped against malformed packets. */
+	public static ChunkLevels receive(FriendlyByteBuf buf) {
+		int[] ys = buf.readVarIntArray(MAX_LAYERS);
+		byte[] data = buf.readByteArray(MAX_LAYERS * ChunkLevels.LAYER_BYTES);
+		return ChunkLevels.of(ys, data);
+	}
+
+	private static final int MAX_LAYERS = 384; // overworld height
 }

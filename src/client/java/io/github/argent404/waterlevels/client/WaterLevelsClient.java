@@ -6,5 +6,6 @@ public class WaterLevelsClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		LevelSync.register();
 	}
 }

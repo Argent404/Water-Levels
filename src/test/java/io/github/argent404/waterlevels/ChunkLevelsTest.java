@@ -91,4 +91,21 @@ class ChunkLevelsTest {
 		assertEquals(0, levels.get(0, 65, 0));
 		assertEquals(0, levels.get(1, 64, 0));
 	}
+
+	@Test
+	void changedAreaBoundsOnlyTheDifferingCells() {
+		ChunkLevels a = ChunkLevels.with(null, List.of(new BlockPos(2, 64, 3)), 4);
+		ChunkLevels b = ChunkLevels.with(a, List.of(new BlockPos(5, 64, 9), new BlockPos(7, 64, 4)), 6);
+		assertArrayEquals(new int[]{5, 4, 7, 9}, ChunkLevels.changedArea(a, b, 64));
+		assertNull(ChunkLevels.changedArea(a, a, 64));
+		assertArrayEquals(new int[]{2, 3, 2, 3}, ChunkLevels.changedArea(a, null, 64));
+	}
+
+	@Test
+	void layersOfCoversBothSides() {
+		ChunkLevels a = ChunkLevels.with(null, List.of(new BlockPos(0, 10, 0)), 1);
+		ChunkLevels b = ChunkLevels.with(null, List.of(new BlockPos(0, 20, 0)), 1);
+		assertArrayEquals(new int[]{10, 20}, ChunkLevels.layersOf(a, b));
+		assertArrayEquals(new int[0], ChunkLevels.layersOf(null, null));
+	}
 }
