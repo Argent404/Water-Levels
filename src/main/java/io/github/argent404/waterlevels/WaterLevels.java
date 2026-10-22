@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -52,8 +53,11 @@ public class WaterLevels implements ModInitializer {
 			int level = Mth.clamp(buf.readByte(), 0, 8);
 			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
 			server.execute(() -> {
-				if (mayEdit(server, player, pos) && Levels.apply(player.serverLevel(), pos, level, radius)) {
+				if (!mayEdit(server, player, pos)) return;
+				if (Levels.apply(player.serverLevel(), pos, level, radius)) {
 					player.playNotifySound(DRIP, SoundSource.BLOCKS, 1f, dripPitch(level));
+				} else if (!player.serverLevel().getFluidState(pos).is(Fluids.WATER)) {
+					player.displayClientMessage(Component.literal("This block can't hold water"), true);
 				}
 			});
 		});

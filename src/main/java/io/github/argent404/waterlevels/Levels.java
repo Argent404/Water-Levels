@@ -4,7 +4,9 @@ import io.github.argent404.waterlevels.duck.WLChunk;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
@@ -13,6 +15,8 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -120,11 +124,12 @@ public final class Levels {
 	// Editing (server thread)
 
 	/**
-	 * Wand right-click: sets {@code level} (0 clears) on all still water at the same height within
-	 * {@code radius} of {@code center}. Returns whether anything changed.
+	 * Wand right-click: adds water with {@link #waterlog}, then sets {@code level} (0 clears) on all
+	 * still water at the same height within {@code radius}. Returns whether anything changed.
 	 */
 	public static boolean apply(ServerLevel world, BlockPos center, int level, int radius) {
-		if (!world.getFluidState(center).is(Fluids.WATER)) return false;
+		boolean watered = waterlog(world, center, radius) > 0;
+		if (!world.getFluidState(center).is(Fluids.WATER)) return watered;
 		Map<LevelChunk, List<BlockPos>> byChunk = new HashMap<>();
 		for (int dx = 1 - radius; dx < radius; dx++) {
 			for (int dz = 1 - radius; dz < radius; dz++) {
@@ -133,7 +138,38 @@ public final class Levels {
 				if (world.getFluidState(pos).is(Fluids.WATER)) byChunk.computeIfAbsent(world.getChunkAt(pos), c -> new ArrayList<>()).add(pos);
 			}
 		}
-		return store(world, byChunk, level) > 0;
+		return store(world, byChunk, level) > 0 || watered;
+	}
+
+	/**
+	 * Waterlogs every block in a bowl (lower half-sphere) of {@code radius} below {@code center}, and
+	 * fills air on the top layer with still water. No neighbour updates, so nothing starts to flow.
+	 * Returns the number of blocks changed.
+	 */
+	public static int waterlog(ServerLevel world, BlockPos center, int radius) {
+		int changed = 0, r2 = radius * radius;
+		for (int dy = 0; dy > -radius; dy--) {
+			for (int dx = 1 - radius; dx < radius; dx++) {
+				for (int dz = 1 - radius; dz < radius; dz++) {
+					if (dx * dx + dy * dy + dz * dz >= r2) continue;
+					BlockPos pos = center.offset(dx, dy, dz);
+					BlockState state = world.getBlockState(pos);
+					BlockState next = null;
+					if (state.hasProperty(BlockStateProperties.WATERLOGGED)) {
+						if (!state.getValue(BlockStateProperties.WATERLOGGED)) next = state.setValue(BlockStateProperties.WATERLOGGED, true);
+					} else if (dy == 0 && state.isAir()) {
+						next = Blocks.WATER.defaultBlockState();
+					}
+					if (next != null && world.setBlock(pos, next, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE)) changed++;
+				}
+			}
+		}
+		// Placed water schedules its own flow tick; cancel it so it stays still.
+		if (changed > 0) {
+			world.getFluidTicks().clearArea(new BoundingBox(center.getX() - radius, center.getY() - radius, center.getZ() - radius,
+					center.getX() + radius, center.getY(), center.getZ() + radius));
+		}
+		return changed;
 	}
 
 	/**

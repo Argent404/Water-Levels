@@ -65,7 +65,7 @@ public class WaterLevelsClient implements ClientModInitializer {
 
 	static void help(Minecraft client) {
 		if (client.player == null) return;
-		client.player.displayClientMessage(Component.literal("Right-click: set level   "
+		client.player.displayClientMessage(Component.literal("Right-click: water   "
 				+ WandKeys.levelName() + " + right-click: level   " + WandKeys.radiusName() + " + scroll: radius"), true);
 	}
 
