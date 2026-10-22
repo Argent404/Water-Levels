@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "waterlevels",
+	"version": "${version}",
+	"name": "Water Levels",
+	"description": "Per-block water surface heights in eighths, without extra block states. Works with Sodium and Iris.",
+	"authors": ["Argent"],
+	"contact": {
+		"sources": "https://github.com/Argent404/Water-Levels"
+	},
+	"license": "CC-BY-4.0",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["io.github.argent404.waterlevels.WaterLevels"],
+		"client": ["io.github.argent404.waterlevels.client.WaterLevelsClient"]
+	},
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=17",
+		"fabric-api": "*"
+	}
+}

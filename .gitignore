@@ -19,3 +19,14 @@ gradle-app.setting
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# Folders the dev client and server create when you run the game
+run/
+runServer/
+
+# IDE settings
+.idea/
+*.iml
+out/
+.vscode/
+bin/
