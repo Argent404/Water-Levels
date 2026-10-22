@@ -114,6 +114,23 @@ public final class Levels {
 	// Editing (server thread)
 
 	/**
+	 * Wand right-click: sets {@code level} (0 clears) on all still water at the same height within
+	 * {@code radius} of {@code center}. Returns whether anything changed.
+	 */
+	public static boolean apply(ServerLevel world, BlockPos center, int level, int radius) {
+		if (!world.getFluidState(center).is(Fluids.WATER)) return false;
+		Map<LevelChunk, List<BlockPos>> byChunk = new HashMap<>();
+		for (int dx = 1 - radius; dx < radius; dx++) {
+			for (int dz = 1 - radius; dz < radius; dz++) {
+				if (dx * dx + dz * dz >= radius * radius) continue;
+				BlockPos pos = center.offset(dx, 0, dz);
+				if (world.getFluidState(pos).is(Fluids.WATER)) byChunk.computeIfAbsent(world.getChunkAt(pos), c -> new ArrayList<>()).add(pos);
+			}
+		}
+		return store(world, byChunk, level) > 0;
+	}
+
+	/**
 	 * {@code /waterlevels fill}: sets {@code level} on the top still water of every column within
 	 * {@code radius}, in loaded chunks only. Returns {changed columns, skipped unloaded columns}.
 	 */

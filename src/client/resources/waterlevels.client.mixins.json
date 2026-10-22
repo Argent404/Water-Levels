@@ -6,6 +6,7 @@
 	"client": [
 		"BobbyChunkSerializerMixin",
 		"LiquidBlockRendererMixin",
+		"MouseHandlerMixin",
 		"SodiumFluidRendererMixin"
 	],
 	"injectors": {
