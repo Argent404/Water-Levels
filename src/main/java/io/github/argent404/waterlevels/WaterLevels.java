@@ -59,6 +59,7 @@ public class WaterLevels implements ModInitializer {
 		});
 
 		FillCommand.register();
+		WandCommand.register();
 
 		// The client already handles wand clicks; stop the server from also using or breaking the block.
 		UseBlockCallback.EVENT.register((player, world, hand, hit) ->
