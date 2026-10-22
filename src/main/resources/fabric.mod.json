@@ -26,5 +26,8 @@
 		"minecraft": "~${minecraft_version}",
 		"java": ">=17",
 		"fabric-api": "*"
+	},
+	"suggests": {
+		"sodium": "0.5.x"
 	}
 }
