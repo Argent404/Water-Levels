@@ -20,7 +20,7 @@ public abstract class FlowingFluidMixin {
 	@ModifyReturnValue(method = "getHeight(Lnet/minecraft/world/level/material/FluidState;Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;)F",
 			at = @At("RETURN"))
 	private float waterlevels$height(float original, @Local(argsOnly = true) FluidState state,
-									  @Local(argsOnly = true) BlockGetter world, @Local(argsOnly = true) BlockPos pos) {
+			@Local(argsOnly = true) BlockGetter world, @Local(argsOnly = true) BlockPos pos) {
 		return Levels.adjust(original, state.getType(), world, pos);
 	}
 

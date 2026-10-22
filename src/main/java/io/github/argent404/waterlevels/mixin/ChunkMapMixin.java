@@ -21,7 +21,7 @@ public abstract class ChunkMapMixin {
 
 	@Inject(method = "playerLoadedChunk", at = @At("HEAD"))
 	private void waterlevels$sendLevels(ServerPlayer player, MutableObject<ClientboundLevelChunkWithLightPacket> packet,
-										 LevelChunk chunk, CallbackInfo ci) {
+			LevelChunk chunk, CallbackInfo ci) {
 		if (((WLChunk) chunk).waterlevels$levels() != null) Levels.send(player, chunk);
 	}
 }

@@ -24,7 +24,7 @@ public abstract class LiquidBlockRendererMixin {
 	@ModifyReturnValue(method = "getHeight(Lnet/minecraft/world/level/BlockAndTintGetter;Lnet/minecraft/world/level/material/Fluid;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/material/FluidState;)F",
 			at = @At("RETURN"))
 	private float waterlevels$height(float original, @Local(argsOnly = true) BlockAndTintGetter view,
-									  @Local(argsOnly = true) Fluid fluid, @Local(argsOnly = true) BlockPos pos) {
+			@Local(argsOnly = true) Fluid fluid, @Local(argsOnly = true) BlockPos pos) {
 		return Levels.renderHeight(original, fluid, levelsView(view), pos);
 	}
 

@@ -24,7 +24,7 @@ public abstract class BobbyChunkSerializerMixin {
 	/** Unloading: copy the levels to Bobby's fake chunk. */
 	@ModifyReturnValue(method = "shallowCopy", at = @At("RETURN"))
 	private static Pair<LevelChunk, Supplier<LevelChunk>> waterlevels$copy(Pair<LevelChunk, Supplier<LevelChunk>> copy,
-																			@Local(argsOnly = true) LevelChunk original) {
+			@Local(argsOnly = true) LevelChunk original) {
 		((WLChunk) copy.getLeft()).waterlevels$setLevels(((WLChunk) original).waterlevels$levels());
 		return copy;
 	}

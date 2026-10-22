@@ -92,7 +92,7 @@ public abstract class SodiumFluidRendererMixin {
 	/** Water above a neighbour (height 1) still pulls the corner to 1, as in vanilla. */
 	@Inject(method = "fluidCornerHeight", at = @At("HEAD"), cancellable = true)
 	private void waterlevels$corner(BlockAndTintGetter world, Fluid fluid, float own, float x, float y, BlockPos diagonal,
-									CallbackInfoReturnable<Float> cir) {
+			CallbackInfoReturnable<Float> cir) {
 		if (!waterlevels$leveled && !waterlevels$stepUp) return;
 		if (x >= 1.0f || y >= 1.0f) {
 			cir.setReturnValue(1.0f);
@@ -156,9 +156,9 @@ public abstract class SodiumFluidRendererMixin {
 	/** Hides the top surface of water fully covered by its own block. */
 	@ModifyReturnValue(method = "isFluidOccluded", at = @At("RETURN"))
 	private boolean waterlevels$occluded(boolean occluded, @Local(argsOnly = true) BlockAndTintGetter world,
-										 @Local(argsOnly = true, ordinal = 0) int x, @Local(argsOnly = true, ordinal = 1) int y,
-										 @Local(argsOnly = true, ordinal = 2) int z, @Local(argsOnly = true) Direction dir,
-										 @Local(argsOnly = true) Fluid fluid) {
+			@Local(argsOnly = true, ordinal = 0) int x, @Local(argsOnly = true, ordinal = 1) int y,
+			@Local(argsOnly = true, ordinal = 2) int z, @Local(argsOnly = true) Direction dir,
+			@Local(argsOnly = true) Fluid fluid) {
 		if (!waterlevels$near || occluded || dir != Direction.UP) return occluded;
 		BlockPos pos = waterlevels$pos.set(x, y, z);
 		return Levels.surfaceHidden(fluid, Minecraft.getInstance().level, pos, world.getBlockState(pos), world);
