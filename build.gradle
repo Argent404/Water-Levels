@@ -11,6 +11,7 @@ base {
 
 repositories {
 	mavenCentral()
+	maven { url = 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
 loom {
@@ -29,6 +30,12 @@ dependencies {
 	mappings loom.officialMojangMappings()
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	// Bundled into the jar so permission checks work with or without LuckPerms. Non-transitive: its
+	// POM pulls in a newer Fabric API, which the 1.20.1 one already covers.
+	include(modImplementation("me.lucko:fabric-permissions-api:${project.permissions_api_version}") {
+		transitive = false
+	})
 
 	testImplementation "org.junit.jupiter:junit-jupiter:${project.junit_version}"
 	testRuntimeOnly "org.junit.platform:junit-platform-launcher:${project.junit_platform_version}"

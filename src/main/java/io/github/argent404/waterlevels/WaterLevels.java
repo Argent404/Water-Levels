@@ -73,8 +73,8 @@ public class WaterLevels implements ModInitializer {
 	private static boolean mayEdit(MinecraftServer server, ServerPlayer player, BlockPos pos) {
 		Integer last = LAST_APPLY.put(player, server.getTickCount());
 		if (last != null && server.getTickCount() - last < 2) return false;
-		if (!player.hasPermissions(2)) {
-			player.displayClientMessage(Component.literal("Only operators can change water levels."), true);
+		if (!Perms.check(player, Perms.WAND)) {
+			player.displayClientMessage(Component.literal("You don't have permission to change water levels."), true);
 			return false;
 		}
 		return holdsWand(player) && player.getAbilities().mayBuild && pos.closerToCenterThan(player.getEyePosition(), 8)

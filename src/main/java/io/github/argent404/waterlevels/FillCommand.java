@@ -9,14 +9,14 @@ import net.minecraft.core.BlockPos;
 
 /**
  * {@code /waterlevels fill <level> <radius>}: sets the level of the top still water in every
- * column within the radius. Operators only.
+ * column within the radius. Requires {@code waterlevels.fill}.
  */
 final class FillCommand {
 	private FillCommand() {}
 
 	static void register() {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(
-				Commands.literal("waterlevels").requires(source -> source.hasPermission(2))
+				Commands.literal("waterlevels").requires(source -> Perms.check(source, Perms.FILL))
 						.then(Commands.literal("fill")
 								.then(Commands.argument("level", IntegerArgumentType.integer(0, 8))
 										.then(Commands.argument("radius", IntegerArgumentType.integer(1, 256))
