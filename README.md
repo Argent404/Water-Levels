@@ -8,6 +8,8 @@ This is primarily designed for use with Conquest Reforged, for the ArdaCraft mod
 
 This function is designed to be used with flowing/ticking water off, the same version must be installed on both server and client.
 
+<img width="1280" height="720" alt="ardacraft_riverbank" src="https://github.com/user-attachments/assets/de72d4be-0454-4f5d-998d-8be964ba30f6" />
+
 
 
 ## Using it
@@ -34,11 +36,17 @@ cycles off → flow view → level view:
 
 - **Flow View:** flowing water (orange), and still water that slopes because the water beside it is at
   another height (yellow);
+<img width="1283" height="784" alt="2026-10-22_00 44 34" src="https://github.com/user-attachments/assets/e595ad31-c119-4803-bf5d-b2654b2806c7" />
+
 
 - **Level View:** leveled tiles in green (darker = lower) with their level (1 to 8) written over them within 12
   blocks; vanilla tiles in dark blue.
+<img width="2288" height="930" alt="2026-10-22_00 42 06" src="https://github.com/user-attachments/assets/d6d6bdf4-c934-4ea3-a79f-1c20b30ea748" />
+
 
 Outlines are drawn very similar to WorldEdit CUI selections, though culled by unexposed terrain.
+
+<img width="1289" height="1288" alt="2026-10-22_00 53 03" src="https://github.com/user-attachments/assets/d67e7168-7672-4cfd-ae55-fe8a022f6a25" />
 
 
 
@@ -46,6 +54,7 @@ Outlines are drawn very similar to WorldEdit CUI selections, though culled by un
 hovering above it (visual only; their hitbox stays put). Included: vanilla lily pads, and
 Conquest's water lilies (big, white), duckweed, alpine bearberry and the four loose sphagnum
 mosses. A datapack can add more to `data/waterlevels/tags/blocks/floats.json`.
+<img width="2560" height="852" alt="2026-10-21_22 09 50" src="https://github.com/user-attachments/assets/fcbfa903-c198-4d80-93e6-e803cbc6bd1e" />
 
 `/waterlevels fill <level> <radius>` sets the surface water of every column within radius (up to
 256) of you, in loaded chunks. Level 0 sets it back to vanilla (normal water).
