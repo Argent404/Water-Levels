@@ -102,6 +102,21 @@ public final class Levels {
 		return level(Fluids.WATER, view, pos) > 0;
 	}
 
+	/**
+	 * Whether any level is stored at height {@code y} within one block of (x, z). Lets renderers
+	 * skip per-block lookups for water nowhere near a level.
+	 */
+	public static boolean layerNear(Level world, int x, int y, int z) {
+		for (int cx = (x - 1) >> 4; cx <= (x + 1) >> 4; cx++) {
+			for (int cz = (z - 1) >> 4; cz <= (z + 1) >> 4; cz++) {
+				LevelChunk chunk = world.getChunkSource().getChunkNow(cx, cz);
+				ChunkLevels levels = chunk == null ? null : ((WLChunk) chunk).waterlevels$levels();
+				if (levels != null && levels.hasLayer(y)) return true;
+			}
+		}
+		return false;
+	}
+
 	/** The stored level at {@code pos} as a height (level / 8), or -1 if none. */
 	public static float levelHeight(BlockGetter view, BlockPos pos) {
 		int level = level(Fluids.WATER, view, pos);

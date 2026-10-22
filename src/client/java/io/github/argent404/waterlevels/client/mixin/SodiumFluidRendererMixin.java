@@ -40,6 +40,8 @@ public abstract class SodiumFluidRendererMixin {
 
 	@Unique private final BlockPos.MutableBlockPos waterlevels$pos = new BlockPos.MutableBlockPos();
 	@Unique private final BlockPos.MutableBlockPos waterlevels$center = new BlockPos.MutableBlockPos();
+	/** Whether any level is stored near this block; if not, every hook returns immediately. */
+	@Unique private boolean waterlevels$near = true;
 	/** Whether this surface, or one of its 8 neighbours, is leveled. */
 	@Unique private boolean waterlevels$leveled;
 	/** Whether leveled water sits one block up next to this block (a step). */
@@ -53,7 +55,9 @@ public abstract class SodiumFluidRendererMixin {
 		waterlevels$stepUp = false;
 		Level world = Minecraft.getInstance().level;
 		int bx = blockPos.getX(), by = blockPos.getY(), bz = blockPos.getZ();
-		if (world == null || !fluidState.is(FluidTags.WATER)) return;
+		waterlevels$near = world != null && fluidState.is(FluidTags.WATER)
+				&& (Levels.layerNear(world, bx, by, bz) || Levels.layerNear(world, bx, by + 1, bz) || Levels.layerNear(world, bx, by - 1, bz));
+		if (!waterlevels$near) return;
 		BlockPos.MutableBlockPos p = waterlevels$pos;
 		if (world.getFluidState(p.setWithOffset(blockPos, Direction.UP)).is(FluidTags.WATER)) return; // not a surface
 		waterlevels$center.set(blockPos);
@@ -76,6 +80,7 @@ public abstract class SodiumFluidRendererMixin {
 
 	@ModifyReturnValue(method = "fluidHeight", at = @At("RETURN"))
 	private float waterlevels$height(float original, @Local(argsOnly = true) Fluid fluid, @Local(argsOnly = true) BlockPos pos) {
+		if (!waterlevels$near) return original;
 		return Levels.renderHeight(original, fluid, Minecraft.getInstance().level, pos);
 	}
 
@@ -149,7 +154,7 @@ public abstract class SodiumFluidRendererMixin {
 										 @Local(argsOnly = true, ordinal = 0) int x, @Local(argsOnly = true, ordinal = 1) int y,
 										 @Local(argsOnly = true, ordinal = 2) int z, @Local(argsOnly = true) Direction dir,
 										 @Local(argsOnly = true) Fluid fluid) {
-		if (occluded || dir != Direction.UP) return occluded;
+		if (!waterlevels$near || occluded || dir != Direction.UP) return occluded;
 		BlockPos pos = waterlevels$pos.set(x, y, z);
 		return Levels.surfaceHidden(fluid, Minecraft.getInstance().level, pos, world.getBlockState(pos), world);
 	}

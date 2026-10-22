@@ -7,8 +7,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChunkLevelsTest {
 
@@ -70,6 +72,8 @@ class ChunkLevelsTest {
 		ChunkLevels levels = ChunkLevels.with(null, List.of(new BlockPos(0, 64, 0), new BlockPos(0, 70, 0)), 4);
 		levels = ChunkLevels.with(levels, List.of(new BlockPos(0, 64, 0)), 0);
 		assertArrayEquals(new int[]{70}, levels.ys);
+		assertFalse(levels.hasLayer(64));
+		assertTrue(levels.hasLayer(70));
 	}
 
 	@Test

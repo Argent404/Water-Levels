@@ -30,6 +30,12 @@ public final class ChunkLevels {
 		return new ChunkLevels(ys, data);
 	}
 
+	/** Whether any level is stored at height {@code y}. */
+	public boolean hasLayer(int y) {
+		for (int stored : this.ys) if (stored == y) return true;
+		return false;
+	}
+
 	/** The raw stored value at a block in this chunk (callers validate the 1-8 range). */
 	public int get(int x, int y, int z) {
 		int[] ys = this.ys;
