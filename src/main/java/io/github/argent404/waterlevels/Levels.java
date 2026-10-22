@@ -4,6 +4,7 @@ import io.github.argent404.waterlevels.duck.WLChunk;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
@@ -14,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.level.BlockGetter;
@@ -59,6 +61,21 @@ public final class Levels {
 	public static VoxelShape shape(FluidState state, BlockGetter view, BlockPos pos) {
 		if (level(state.getType(), view, pos) == 0) return null;
 		return Shapes.box(0, 0, 0, 1, state.getHeight(view, pos), 1);
+	}
+
+	private static final VoxelShape[] VOLUMES = new VoxelShape[9];
+	static {
+		for (int i = 1; i <= 8; i++) VOLUMES[i] = Shapes.box(0, 0, 0, 1, i / 8.0, 1);
+	}
+
+	/**
+	 * Whether an opaque block fully covers this water (e.g. a bottom slab holding level 4),
+	 * in which case the surface is not drawn.
+	 */
+	public static boolean surfaceHidden(Fluid fluid, BlockGetter levels, BlockPos pos, BlockState state, BlockGetter view) {
+		if (!state.canOcclude()) return false;
+		int level = level(fluid, levels, pos);
+		return level > 0 && !Shapes.joinIsNotEmpty(VOLUMES[level], state.getOcclusionShape(view, pos), BooleanOp.ONLY_FIRST);
 	}
 
 	/** {@link #adjust} for rendering. */
