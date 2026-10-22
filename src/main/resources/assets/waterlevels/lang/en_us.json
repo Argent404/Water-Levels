@@ -3,5 +3,5 @@
   "key.categories.waterlevels": "Water Levels",
   "key.waterlevels.radius_modifier": "Wand radius (hold + scroll; unbound = Left Ctrl)",
   "key.waterlevels.level_modifier": "Wand level (hold + right-click to pick; unbound = Left Shift)",
-  "key.waterlevels.toggle_outlines": "Water outlines (cycle: off, flow view, vanilla view, level view)"
+  "key.waterlevels.toggle_outlines": "Water outlines (cycle: off, flow view, level view)"
 }

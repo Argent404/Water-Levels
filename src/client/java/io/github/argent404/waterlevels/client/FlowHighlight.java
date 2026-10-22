@@ -11,7 +11,7 @@ import net.minecraft.client.gui.Font;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LightTexture;
-import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexBuffer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -24,6 +24,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.levelgen.Heightmap;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
@@ -40,7 +41,6 @@ import java.util.Set;
  *
  * <ul>
  *   <li>flow view: flowing water (orange) and still water sloping into a different height (yellow);</li>
- *   <li>vanilla view: still surface water with no level yet (blue);</li>
  *   <li>level view: every still surface, leveled tiles in green with their level number, vanilla tiles in blue.</li>
  * </ul>
  *
@@ -51,7 +51,7 @@ import java.util.Set;
 final class FlowHighlight {
 	private FlowHighlight() {}
 
-	enum Mode { OFF, FLOW, VANILLA, VIEW_LEVELS }
+	enum Mode { OFF, FLOW, VIEW_LEVELS }
 
 	/** One outlined water block, with its colour and level (0 = none). */
 	private record Outline(int x, int y, int z, float[] rgb, int level) {}
@@ -61,16 +61,18 @@ final class FlowHighlight {
 		static final Drawn EMPTY = new Drawn(List.of(), new double[0], new float[0]);
 	}
 
-	private static final int RADIUS = 30, UP = 8, DOWN = 40, MAX_OUTLINES = 12000, RESCAN_TICKS = 10;
+	private static final int RADIUS = 30, UP = 8, DOWN = 60, MAX_OUTLINES = 12000, RESCAN_TICKS = 10;
+	/** Below this depth, only water open to the sky is outlined. */
+	private static final int OPEN_SKY_BELOW = 30;
 	private static final int LAYERS = UP + DOWN + 1, LAYERS_PER_TICK = (LAYERS + RESCAN_TICKS - 1) / RESCAN_TICKS;
 	/** Outline height: one pixel into the block above the water. */
 	private static final float OUTLINE_HEIGHT = 1 + 1 / 32f;
 	/** Alpha of lines behind terrain. */
 	private static final float HIDDEN_ALPHA = 0.3f;
 	/** Level numbers are only drawn within this distance. */
-	private static final double LABEL_DISTANCE = 20;
+	private static final double LABEL_DISTANCE = 12;
 
-	private static final float[] ORANGE = {1f, 0.45f, 0.1f}, YELLOW = {1f, 0.9f, 0.1f}, BLUE = {0.25f, 0.55f, 1f}, DARK_BLUE = {0.15f, 0.35f, 0.8f};
+	private static final float[] ORANGE = {1f, 0.45f, 0.1f}, YELLOW = {1f, 0.9f, 0.1f}, DARK_BLUE = {0.15f, 0.35f, 0.8f};
 
 	/** Level view colours by level, from teal (1) to yellow-green (8). */
 	private static final float[][] LEVEL_GREENS = new float[9][];
@@ -148,32 +150,54 @@ final class FlowHighlight {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableCull();
 			RenderSystem.disableBlend();
+		});
 
-			if (mode == Mode.VIEW_LEVELS) labels(context, current, cam);
+		// Drawn last so shader pack water doesn't cover the numbers.
+		WorldRenderEvents.LAST.register(context -> {
+			Drawn current = drawn;
+			if (mode == Mode.VIEW_LEVELS && !current.tiles().isEmpty()) labels(context, current, context.camera().getPosition());
 		});
 	}
 
-	private static void lines(Drawn d, Matrix4f m, Vec3 cam, float alpha) {
-		double[] l = d.lines();
-		float[] c = d.colors();
-		BufferBuilder buffer = Tesselator.getInstance().getBuilder();
-		buffer.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
-		for (int i = 0, n = c.length / 3; i < n; i++) {
-			vertex(buffer, m, l[i * 6] - cam.x, l[i * 6 + 1] - cam.y, l[i * 6 + 2] - cam.z, c, i, alpha);
-			vertex(buffer, m, l[i * 6 + 3] - cam.x, l[i * 6 + 4] - cam.y, l[i * 6 + 5] - cam.z, c, i, alpha);
-		}
-		Tesselator.getInstance().end();
-	}
-
 	/**
-	 * A camera-relative vertex, moved about 1 cm toward the camera so lines on a block face don't
+	 * The lines are uploaded once per scan relative to a fixed origin and drawn each frame with a
+	 * camera offset. They are scaled very slightly toward the camera so lines on a block face don't
 	 * z-fight with it.
 	 */
-	private static void vertex(BufferBuilder buffer, Matrix4f m, double x, double y, double z, float[] c, int i, float alpha) {
-		double distance = Math.sqrt(x * x + y * y + z * z);
-		double scale = distance < 0.05 ? 1 : 1 - (0.01 + distance * 0.0006) / distance;
-		buffer.vertex(m, (float) (x * scale), (float) (y * scale), (float) (z * scale))
-				.color(c[i * 3], c[i * 3 + 1], c[i * 3 + 2], alpha).endVertex();
+	private static VertexBuffer gpu;
+	private static Drawn uploaded;
+	private static double originX, originY, originZ;
+	private static BufferBuilder builder;
+	private static final float NUDGE = 1 - 0.0008f;
+
+	private static void lines(Drawn d, Matrix4f m, Vec3 cam, float alpha) {
+		if (d != uploaded) upload(d);
+		Matrix4f view = new Matrix4f(RenderSystem.getModelViewMatrix()).mul(m).scale(NUDGE)
+				.translate((float) (originX - cam.x), (float) (originY - cam.y), (float) (originZ - cam.z));
+		RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+		gpu.bind();
+		gpu.drawWithShader(view, RenderSystem.getProjectionMatrix(), RenderSystem.getShader());
+		VertexBuffer.unbind();
+		RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+	}
+
+	private static void upload(Drawn d) {
+		uploaded = d;
+		double[] l = d.lines();
+		float[] c = d.colors();
+		originX = Math.floor(l[0]);
+		originY = Math.floor(l[1]);
+		originZ = Math.floor(l[2]);
+		if (builder == null) builder = new BufferBuilder(1 << 16);
+		builder.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
+		for (int i = 0, n = c.length / 3; i < n; i++) {
+			builder.vertex(l[i * 6] - originX, l[i * 6 + 1] - originY, l[i * 6 + 2] - originZ).color(c[i * 3], c[i * 3 + 1], c[i * 3 + 2], 1f).endVertex();
+			builder.vertex(l[i * 6 + 3] - originX, l[i * 6 + 4] - originY, l[i * 6 + 5] - originZ).color(c[i * 3], c[i * 3 + 1], c[i * 3 + 2], 1f).endVertex();
+		}
+		if (gpu == null) gpu = new VertexBuffer(VertexBuffer.Usage.STATIC);
+		gpu.bind();
+		gpu.upload(builder.end());
+		VertexBuffer.unbind();
 	}
 
 	/** Draws each leveled tile's number above it, facing the camera. */
@@ -239,7 +263,6 @@ final class FlowHighlight {
 		String bar = switch (mode) {
 			case OFF -> "Water outlines: off";
 			case FLOW -> "Water outlines: flow view (" + count + ")" + (first ? "  §6orange§r = flowing, §eyellow§r = still but sloping" : "");
-			case VANILLA -> "Water outlines: vanilla view (" + count + ")" + (first ? "  §9blue§r = no level set yet" : "");
 			case VIEW_LEVELS -> "Water outlines: level view (" + count + ")" + (first ? "  numbers = level in eighths (§2darker§r = lower), §1dark blue§r = vanilla" : "");
 		};
 		client.player.displayClientMessage(Component.literal(bar), true);
@@ -269,6 +292,7 @@ final class FlowHighlight {
 				if (fluid.isEmpty() || !fluid.is(FluidTags.WATER)) continue;
 				if (isWater(world, other.setWithOffset(pos, Direction.UP))) continue; // not a surface
 				if (buried(world, pos, other)) continue;
+				if (dy < -OPEN_SKY_BELOW && world.getHeight(Heightmap.Types.WORLD_SURFACE, pos.getX(), pos.getZ()) > y + 1) continue; // covered
 				Outline o = outline(world, pos, fluid, other);
 				if (o != null) out.add(o);
 			}
@@ -290,9 +314,6 @@ final class FlowHighlight {
 			case FLOW -> {
 				if (!fluid.isSource()) return of(pos, ORANGE, 0);
 				return slopes(world, pos, height(world, pos, level), other) ? of(pos, YELLOW, 0) : null;
-			}
-			case VANILLA -> {
-				return fluid.isSource() && level < 0 ? of(pos, BLUE, 0) : null;
 			}
 			case VIEW_LEVELS -> {
 				if (!fluid.isSource()) return null;
