@@ -15,7 +15,11 @@
 		"client": ["io.github.argent404.waterlevels.client.WaterLevelsClient"]
 	},
 	"mixins": [
-		"waterlevels.mixins.json"
+		"waterlevels.mixins.json",
+		{
+			"config": "waterlevels.client.mixins.json",
+			"environment": "client"
+		}
 	],
 	"depends": {
 		"fabricloader": ">=${loader_version}",

@@ -61,6 +61,11 @@ public final class Levels {
 		return Shapes.box(0, 0, 0, 1, state.getHeight(view, pos), 1);
 	}
 
+	/** {@link #adjust} for rendering. */
+	public static float renderHeight(float original, Fluid fluid, BlockGetter view, BlockPos pos) {
+		return adjust(original, fluid, view, pos);
+	}
+
 	/**
 	 * The stored level (1-8) at {@code pos}, or 0. Never loads a chunk: getChunkNow returns null
 	 * for unloaded chunks, and on the server also off the server thread.
