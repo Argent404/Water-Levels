@@ -83,6 +83,11 @@ public final class Levels {
 		return adjust(original, fluid, view, pos);
 	}
 
+	/** Whether a level is stored at {@code pos}. */
+	public static boolean hasLevel(BlockGetter view, BlockPos pos) {
+		return level(Fluids.WATER, view, pos) > 0;
+	}
+
 	/**
 	 * The stored level (1-8) at {@code pos}, or 0. Never loads a chunk: getChunkNow returns null
 	 * for unloaded chunks, and on the server also off the server thread.
