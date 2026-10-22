@@ -42,11 +42,17 @@ public abstract class SodiumFluidRendererMixin {
 	@Unique private final BlockPos.MutableBlockPos waterlevels$center = new BlockPos.MutableBlockPos();
 	/** Whether this surface, or one of its 8 neighbours, is leveled. */
 	@Unique private boolean waterlevels$leveled;
+	/** Whether leveled water sits one block up next to this block (a step). */
+	@Unique private boolean waterlevels$stepUp;
+	/** Lower water at least this high joins the step above it. */
+	@Unique private static final float WATERLEVELS_MEET = 0.8f;
 
 	@Inject(method = "render", at = @At("HEAD"))
 	private void waterlevels$begin(CallbackInfo ci, @Local(argsOnly = true) FluidState fluidState, @Local(argsOnly = true, ordinal = 0) BlockPos blockPos) {
 		waterlevels$leveled = false;
+		waterlevels$stepUp = false;
 		Level world = Minecraft.getInstance().level;
+		int bx = blockPos.getX(), by = blockPos.getY(), bz = blockPos.getZ();
 		if (world == null || !fluidState.is(FluidTags.WATER)) return;
 		BlockPos.MutableBlockPos p = waterlevels$pos;
 		if (world.getFluidState(p.setWithOffset(blockPos, Direction.UP)).is(FluidTags.WATER)) return; // not a surface
@@ -59,6 +65,13 @@ public abstract class SodiumFluidRendererMixin {
 			}
 		}
 		waterlevels$leveled = leveled;
+		boolean stepUp = false;
+		for (int dx = -1; dx <= 1 && !stepUp; dx++) {
+			for (int dz = -1; dz <= 1 && !stepUp; dz++) {
+				stepUp = Levels.hasLevel(world, p.set(bx + dx, by + 1, bz + dz));
+			}
+		}
+		waterlevels$stepUp = stepUp;
 	}
 
 	@ModifyReturnValue(method = "fluidHeight", at = @At("RETURN"))
@@ -70,11 +83,37 @@ public abstract class SodiumFluidRendererMixin {
 	@Inject(method = "fluidCornerHeight", at = @At("HEAD"), cancellable = true)
 	private void waterlevels$corner(BlockAndTintGetter world, Fluid fluid, float own, float x, float y, BlockPos diagonal,
 									CallbackInfoReturnable<Float> cir) {
-		if (!waterlevels$leveled) return;
+		if (!waterlevels$leveled && !waterlevels$stepUp) return;
 		if (x >= 1.0f || y >= 1.0f) {
 			cir.setReturnValue(1.0f);
 			return;
 		}
+		// Steps: the lower water rises to the top of the bank block and the upper water comes down to meet it.
+		BlockPos c = waterlevels$center;
+		BlockPos.MutableBlockPos p = waterlevels$pos;
+		for (int i = 0; i < 3; i++) {
+			if (i == 0) p.set(diagonal.getX(), c.getY(), c.getZ());
+			else if (i == 1) p.set(c.getX(), c.getY(), diagonal.getZ());
+			else p.set(diagonal);
+			float side = fluidHeight(world, fluid, p, Direction.UP);
+			if (waterlevels$stepUp && side <= 0 && Levels.hasLevel(Minecraft.getInstance().level, p.move(Direction.UP))) {
+				cir.setReturnValue(1.0f); // lower side of a step
+				return;
+			}
+		}
+		if (waterlevels$leveled) {
+			for (int i = 0; i < 3; i++) {
+				if (i == 0) p.set(diagonal.getX(), c.getY(), c.getZ());
+				else if (i == 1) p.set(c.getX(), c.getY(), diagonal.getZ());
+				else p.set(diagonal);
+				if (fluidHeight(world, fluid, p, Direction.UP) != 0) continue;
+				if (fluidHeight(world, fluid, p.move(Direction.DOWN), Direction.UP) >= WATERLEVELS_MEET) {
+					cir.setReturnValue(0.0f); // upper side of a step
+					return;
+				}
+			}
+		}
+		if (!waterlevels$leveled) return;
 		// Average of the water heights around the corner (0 = air and -1 = solid are skipped).
 		if (!waterlevels$cornerTouchesLevel(diagonal)) return;
 		float sum = own;
