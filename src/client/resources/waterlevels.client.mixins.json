@@ -4,6 +4,7 @@
 	"package": "io.github.argent404.waterlevels.client.mixin",
 	"compatibilityLevel": "JAVA_17",
 	"client": [
+		"BobbyChunkSerializerMixin",
 		"LiquidBlockRendererMixin",
 		"SodiumFluidRendererMixin"
 	],

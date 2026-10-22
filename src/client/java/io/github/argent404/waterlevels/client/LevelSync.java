@@ -22,7 +22,7 @@ import java.util.Map;
 final class LevelSync {
 	private LevelSync() {}
 
-	/** Levels received for chunks that haven't loaded yet. */
+	/** Levels received for chunks that haven't loaded yet, or are about to replace a Bobby copy. */
 	private static final Map<Long, ChunkLevels> waiting = new HashMap<>();
 	private static final int MAX_WAITING = 8192;
 
@@ -41,13 +41,18 @@ final class LevelSync {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(waiting::clear));
 	}
 
+	private static boolean isBobbyCopy(LevelChunk chunk) {
+		return chunk.getClass().getName().startsWith("de.johni0702.minecraft.bobby.");
+	}
+
 	private static void receive(Minecraft client, ChunkPos pos, ChunkLevels after) {
 		if (client.level == null) return;
 		LevelChunk chunk = client.level.getChunkSource().getChunkNow(pos.x, pos.z);
-		if (chunk == null) {
+		// Not loaded yet, or a Bobby cached copy that the real chunk will replace.
+		if (chunk == null || isBobbyCopy(chunk)) {
 			if (waiting.size() >= MAX_WAITING) waiting.clear();
 			waiting.put(pos.toLong(), after);
-			return;
+			if (chunk == null) return;
 		}
 		WLChunk data = (WLChunk) chunk;
 		ChunkLevels before = data.waterlevels$levels();
