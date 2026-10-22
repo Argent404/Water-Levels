@@ -19,6 +19,8 @@ final class WandKeys {
 			new KeyMapping("key.waterlevels.radius_modifier", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, CATEGORY));
 	static final KeyMapping LEVEL_MODIFIER = KeyBindingHelper.registerKeyBinding(
 			new KeyMapping("key.waterlevels.level_modifier", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, CATEGORY));
+	static final KeyMapping TOGGLE_OUTLINES = KeyBindingHelper.registerKeyBinding(
+			new KeyMapping("key.waterlevels.toggle_outlines", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, CATEGORY));
 
 	/** Loads the class so the bindings above are registered. */
 	static void register() {}
