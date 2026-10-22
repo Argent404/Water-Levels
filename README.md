@@ -220,6 +220,7 @@ surface sits. So everything that works with water keeps working:
 - **Resource packs:** water textures, colours and biome tint are unchanged.
 - **Gameplay:** swimming, boats, drowning, buckets, fishing and water flow all behave as normal;
   they just use the new surface height.
+- Luckperms/PlotSquared permissions should work.
 - **Other mods** that look for water or waterlogged blocks find exactly what they expect.
 - **Without the mod** (a vanilla client or server), the same world loads as ordinary full
   water, and the levels are still there when the mod comes back.
