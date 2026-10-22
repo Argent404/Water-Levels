@@ -78,9 +78,16 @@ public final class Levels {
 		return level > 0 && !Shapes.joinIsNotEmpty(VOLUMES[level], state.getOcclusionShape(view, pos), BooleanOp.ONLY_FIRST);
 	}
 
-	/** {@link #adjust} for rendering. */
+	/**
+	 * Leveled surfaces are drawn one pixel (1/32) below their true height so they don't sit flush
+	 * with an adjacent slab top. Rendering only.
+	 */
+	public static final float VISUAL_DROP = 1 / 32f;
+
+	/** {@link #adjust} for rendering, lowered by {@link #VISUAL_DROP}. */
 	public static float renderHeight(float original, Fluid fluid, BlockGetter view, BlockPos pos) {
-		return adjust(original, fluid, view, pos);
+		float height = adjust(original, fluid, view, pos);
+		return height != original ? height - VISUAL_DROP : original;
 	}
 
 	/** Whether a level is stored at {@code pos}. */
