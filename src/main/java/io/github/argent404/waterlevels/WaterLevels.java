@@ -11,5 +11,6 @@ public class WaterLevels implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		FillCommand.register();
 	}
 }
