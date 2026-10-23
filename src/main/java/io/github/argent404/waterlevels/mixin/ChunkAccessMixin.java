@@ -9,8 +9,9 @@ import org.spongepowered.asm.mixin.Unique;
 /** Adds the levels field to chunks. */
 @Mixin(ChunkAccess.class)
 public abstract class ChunkAccessMixin implements WLChunk {
+	/** Volatile: written on the main thread, read by Sodium's mesh threads. */
 	@Unique
-	private ChunkLevels waterlevels$levels;
+	private volatile ChunkLevels waterlevels$levels;
 
 	@Override
 	public ChunkLevels waterlevels$levels() {

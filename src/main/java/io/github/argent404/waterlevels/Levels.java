@@ -53,8 +53,8 @@ public final class Levels {
 	/** Vanilla height of a still water surface. */
 	private static final float SOURCE_HEIGHT = 8 / 9.0f;
 
-	// Lookups. Safe off the main thread: level data is immutable and replaced whole on each edit,
-	// so a reader always sees a complete old or new copy.
+	// Lookups. Safe off the main thread: level data is immutable and replaced whole on each edit
+	// through a volatile field, so a reader always sees a complete old or new copy.
 
 	/**
 	 * Returns the leveled height at {@code pos}, or {@code original} if there is no level.
@@ -103,11 +103,14 @@ public final class Levels {
 	}
 
 	/**
-	 * Whether a level is stored at {@code pos} and there is water there for it to apply to. Levels
-	 * stay stored after their water is removed, until the chunk is next pruned.
+	 * Whether a level is stored at {@code pos} and currently applies: still water with no water
+	 * above, the same case as {@link #adjust}. Levels stay stored after their water is removed or
+	 * covered, until the chunk is next pruned.
 	 */
 	public static boolean hasLevel(BlockGetter view, BlockPos pos) {
-		return level(Fluids.WATER, view, pos) > 0 && view.getFluidState(pos).is(FluidTags.WATER);
+		if (level(Fluids.WATER, view, pos) == 0) return false;
+		FluidState fluid = view.getFluidState(pos);
+		return fluid.is(FluidTags.WATER) && fluid.isSource() && !view.getFluidState(pos.above()).is(FluidTags.WATER);
 	}
 
 	/**
