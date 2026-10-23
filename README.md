@@ -107,8 +107,9 @@ comes back. Only the server reads and writes it; clients get levels over the net
   and the same arrays are used in memory, in the chunk's NBT (`waterlevels:levels`) and
   on the network, so saving and sending copy nothing. Unloading a chunk discards it.
 - **Lookups** read straight from the loaded chunk with vanilla's non-blocking
-  `getWorldChunk`. On the client it is a
-  lock-free array read, safe from Sodium's mesh threads** probably.
+  `getChunkNow`. Level data is immutable and replaced whole on each edit, so Sodium's
+  mesh threads always see a complete old or new copy; at worst one mesh uses the
+  previous levels until the edit's redraw.
 - **Hooks:** three height hooks (gameplay, vanilla renderer, Sodium renderer) all call
   the same `Levels.adjust`. Its first line returns unless vanilla's answer was exactly
   the still-water height, so submerged, flowing and non-water blocks pay one float
@@ -233,7 +234,7 @@ far-away terrain itself, so leveled water shows at full height in its LODs.*
 - Water still spreads out of a waterlogged block that touches air, like vanilla if flow is not off.
 - WorldEdit and schematics do not copy levels.
 - An edit re-sends that chunk's levels and re-meshes the changed cells plus one block
-  around them (usually one or two sections)."
+  around them, including the layers above and below (usually one or two sections)."
 - Axiom? initial attempts were FUBAR.
 - DH/Voxy distant rendering follows their standard behaviour - meaning, often incorrect height/fill in LODS.
 

@@ -23,6 +23,7 @@ gradle-app.setting
 # Folders the dev client and server create when you run the game
 run/
 runServer/
+logs/
 
 # IDE settings
 .idea/

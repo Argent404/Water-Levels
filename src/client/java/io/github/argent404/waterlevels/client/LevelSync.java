@@ -59,11 +59,12 @@ final class LevelSync {
 		data.waterlevels$setLevels(after);
 
 		// Include a one-block margin: water corners are shared with neighbours, and Sodium adds no margin itself.
+		// The layers above and below are included too: a level also shapes the step below it and floats plants above it.
 		for (int y : ChunkLevels.layersOf(before, after)) {
 			int[] box = ChunkLevels.changedArea(before, after, y);
 			if (box != null) {
-				client.levelRenderer.setBlocksDirty(pos.getMinBlockX() + box[0] - 1, y, pos.getMinBlockZ() + box[1] - 1,
-						pos.getMinBlockX() + box[2] + 1, y, pos.getMinBlockZ() + box[3] + 1);
+				client.levelRenderer.setBlocksDirty(pos.getMinBlockX() + box[0] - 1, y - 1, pos.getMinBlockZ() + box[1] - 1,
+						pos.getMinBlockX() + box[2] + 1, y + 1, pos.getMinBlockZ() + box[3] + 1);
 			}
 		}
 	}
