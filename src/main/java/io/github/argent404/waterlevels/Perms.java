@@ -1,6 +1,7 @@
 package io.github.argent404.waterlevels;
 
 import me.lucko.fabric.api.permissions.v0.Permissions;
+
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -9,7 +10,8 @@ import net.minecraft.server.level.ServerPlayer;
  * Without a permissions mod, only operators pass.
  */
 public final class Perms {
-	private Perms() {}
+	private Perms() {
+	}
 
 	public static final String WAND = "waterlevels.wand", FILL = "waterlevels.fill";
 	private static final int OP_LEVEL = 2;

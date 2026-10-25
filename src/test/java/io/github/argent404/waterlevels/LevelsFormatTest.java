@@ -1,20 +1,20 @@
 package io.github.argent404.waterlevels;
 
-import io.netty.buffer.Unpooled;
-import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.List;
+
+import io.netty.buffer.Unpooled;
+import org.junit.jupiter.api.Test;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+
 /** The save format (chunk NBT) and the network format, without a running game. */
 class LevelsFormatTest {
-
 	private static CompoundTag saved(String key, ChunkLevels levels) {
 		CompoundTag tag = new CompoundTag();
 		tag.putIntArray("Y", levels.ys);

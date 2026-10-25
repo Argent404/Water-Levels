@@ -1,10 +1,5 @@
 package io.github.argent404.waterlevels;
 
-import net.minecraft.core.BlockPos;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,18 +7,26 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ChunkLevelsTest {
+import java.util.List;
 
+import org.junit.jupiter.api.Test;
+
+import net.minecraft.core.BlockPos;
+
+class ChunkLevelsTest {
 	@Test
 	void writesAndReadsBackEveryCellOfALayer() {
 		ChunkLevels levels = null;
+
 		for (int cell = 0; cell < 256; cell++) {
 			int x = cell & 15, z = cell >> 4;
 			levels = ChunkLevels.with(levels, List.of(new BlockPos(x, 63, z)), 1 + cell % 8);
 		}
+
 		for (int cell = 0; cell < 256; cell++) {
 			assertEquals(1 + cell % 8, levels.get(cell & 15, 63, cell >> 4));
 		}
+
 		assertArrayEquals(new int[]{63}, levels.ys);
 		assertEquals(ChunkLevels.LAYER_BYTES, levels.data.length);
 	}

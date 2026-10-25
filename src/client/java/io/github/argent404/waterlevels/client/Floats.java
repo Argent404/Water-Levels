@@ -1,14 +1,16 @@
 package io.github.argent404.waterlevels.client;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.CommonLifecycleEvents;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.tags.TagKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.block.Block;
+
+import net.fabricmc.fabric.api.event.lifecycle.v1.CommonLifecycleEvents;
 
 /** The {@code #waterlevels:floats} block tag. Block states cache membership until tags reload. */
 public final class Floats {
-	private Floats() {}
+	private Floats() {
+	}
 
 	public static final TagKey<Block> TAG = TagKey.create(Registries.BLOCK, new ResourceLocation("waterlevels", "floats"));
 

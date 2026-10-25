@@ -1,17 +1,20 @@
 package io.github.argent404.waterlevels.client;
 
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.KeyMapping;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
+
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 
 /**
  * Wand key bindings (Options > Controls > Water Levels). While unbound, the modifiers fall back
  * to the physical Left Ctrl and Left Shift keys, so they don't conflict with sprint and sneak.
  */
 final class WandKeys {
-	private WandKeys() {}
+	private WandKeys() {
+	}
 
 	private static final String CATEGORY = "key.categories.waterlevels";
 
@@ -23,7 +26,8 @@ final class WandKeys {
 			new KeyMapping("key.waterlevels.toggle_outlines", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, CATEGORY));
 
 	/** Loads the class so the bindings above are registered. */
-	static void register() {}
+	static void register() {
+	}
 
 	static boolean radiusModifier(Minecraft client) {
 		return isUnbound(RADIUS_MODIFIER) ? physical(client, GLFW.GLFW_KEY_LEFT_CONTROL) : held(client, RADIUS_MODIFIER);
@@ -53,7 +57,11 @@ final class WandKeys {
 	/** Whether the key or mouse button bound to {@code binding} is held; false if unbound. */
 	private static boolean held(Minecraft client, KeyMapping binding) {
 		InputConstants.Key key = KeyBindingHelper.getBoundKeyOf(binding);
-		if (key.equals(InputConstants.UNKNOWN)) return false;
+
+		if (key.equals(InputConstants.UNKNOWN)) {
+			return false;
+		}
+
 		long window = client.getWindow().getWindow();
 		return key.getType() == InputConstants.Type.MOUSE
 				? GLFW.glfwGetMouseButton(window, key.getValue()) == GLFW.GLFW_PRESS

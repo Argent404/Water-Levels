@@ -1,15 +1,17 @@
 package io.github.argent404.waterlevels;
 
-import net.fabricmc.loader.api.FabricLoader;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Per-block build checks for wand edits. Every block the brush changes is checked, not only the
@@ -21,7 +23,8 @@ import java.lang.reflect.Method;
  * roads, unowned plots, height limits and the admin bypass permissions.
  */
 public final class Protection {
-	private Protection() {}
+	private Protection() {
+	}
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(WaterLevels.MOD_ID);
 	private static final boolean PLOTS = FabricLoader.getInstance().isModLoaded("plotsquared-fabric");
@@ -32,23 +35,37 @@ public final class Protection {
 	/** Whether {@code player} may change the block at {@code pos}. */
 	public static boolean mayEdit(ServerPlayer player, BlockPos pos) {
 		ServerLevel world = player.serverLevel();
-		if (!world.mayInteract(player, pos)) return false;
+
+		if (!world.mayInteract(player, pos)) {
+			return false;
+		}
+
 		return !PLOTS || plotsAllow(player, world, pos);
 	}
 
 	/** Fails closed: if the PlotSquared check can't be reached, nothing is edited while it is installed. */
 	private static boolean plotsAllow(ServerPlayer player, ServerLevel world, BlockPos pos) {
-		if (broken) return false;
+		if (broken) {
+			return false;
+		}
+
 		try {
 			if (check == null) {
 				Class<?> platformClass = Class.forName("com.plotsquared.fabric.FabricPlatform");
 				platform = platformClass.getField("PLATFORM");
 				listener = platformClass.getField("blockEventListener");
+
 				for (Method m : listener.getType().getMethods()) {
-					if (m.getName().equals("blockCreateAxiom") && m.getParameterCount() == 5) check = m;
+					if (m.getName().equals("blockCreateAxiom") && m.getParameterCount() == 5) {
+						check = m;
+					}
 				}
-				if (check == null) throw new NoSuchMethodException("blockCreateAxiom");
+
+				if (check == null) {
+					throw new NoSuchMethodException("blockCreateAxiom");
+				}
 			}
+
 			Object instance = listener.get(platform.get(null));
 			return check.invoke(instance, player, world, pos, world.getBlockState(pos), null) != InteractionResult.FAIL;
 		} catch (ReflectiveOperationException | RuntimeException e) {

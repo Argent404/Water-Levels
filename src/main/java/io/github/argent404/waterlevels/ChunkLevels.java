@@ -1,10 +1,10 @@
 package io.github.argent404.waterlevels;
 
-import net.minecraft.core.BlockPos;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.TreeMap;
+
+import net.minecraft.core.BlockPos;
 
 /**
  * A chunk's water levels. Immutable: edits return a new instance.
@@ -26,38 +26,57 @@ public final class ChunkLevels {
 
 	/** Wraps arrays read from disk or the network; null if malformed or empty. */
 	public static ChunkLevels of(int[] ys, byte[] data) {
-		if (ys.length == 0 || data.length != ys.length * LAYER_BYTES) return null;
+		if (ys.length == 0 || data.length != ys.length * LAYER_BYTES) {
+			return null;
+		}
+
 		return new ChunkLevels(ys, data);
 	}
 
 	/** Whether any level is stored at height {@code y}. */
 	public boolean hasLayer(int y) {
-		for (int stored : this.ys) if (stored == y) return true;
+		for (int stored : this.ys) {
+			if (stored == y) {
+				return true;
+			}
+		}
+
 		return false;
 	}
 
 	/** The raw stored value at a block in this chunk (callers validate the 1-8 range). */
 	public int get(int x, int y, int z) {
 		int[] ys = this.ys;
+
 		for (int i = 0; i < ys.length; i++) {
 			if (ys[i] == y) {
 				int cell = ((z & 15) << 4) | (x & 15);
 				return (this.data[i * LAYER_BYTES + (cell >> 1)] >> ((cell & 1) << 2)) & 15;
 			}
 		}
+
 		return 0;
 	}
 
 	/** Bounds {minX, minZ, maxX, maxZ} of the cells in layer y that differ between a and b, or null. */
 	public static int[] changedArea(ChunkLevels a, ChunkLevels b, int y) {
 		int[] box = null;
+
 		for (int cell = 0; cell < 256; cell++) {
 			int x = cell & 15, z = cell >> 4;
-			if ((a == null ? 0 : a.get(x, y, z)) == (b == null ? 0 : b.get(x, y, z))) continue;
-			if (box == null) box = new int[]{x, z, x, z};
+
+			if ((a == null ? 0 : a.get(x, y, z)) == (b == null ? 0 : b.get(x, y, z))) {
+				continue;
+			}
+
+			if (box == null) {
+				box = new int[]{x, z, x, z};
+			}
+
 			box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], z);
 			box[2] = Math.max(box[2], x); box[3] = Math.max(box[3], z);
 		}
+
 		return box;
 	}
 
@@ -70,26 +89,46 @@ public final class ChunkLevels {
 	/** Returns a copy with {@code level} set at each position, {@code old} if nothing changed, or null if empty. */
 	public static ChunkLevels with(ChunkLevels old, List<BlockPos> positions, int level) {
 		TreeMap<Integer, byte[]> layers = new TreeMap<>();
+
 		if (old != null) {
-			for (int i = 0; i < old.ys.length; i++) layers.put(old.ys[i], Arrays.copyOfRange(old.data, i * LAYER_BYTES, (i + 1) * LAYER_BYTES));
+			for (int i = 0; i < old.ys.length; i++) {
+				layers.put(old.ys[i], Arrays.copyOfRange(old.data, i * LAYER_BYTES, (i + 1) * LAYER_BYTES));
+			}
 		}
+
 		boolean changed = false;
+
 		for (BlockPos pos : positions) {
 			byte[] layer = layers.computeIfAbsent(pos.getY(), y -> new byte[LAYER_BYTES]);
 			int cell = ((pos.getZ() & 15) << 4) | (pos.getX() & 15), shift = (cell & 1) << 2;
 			int current = (layer[cell >> 1] >> shift) & 15;
-			if (current == level) continue;
+
+			if (current == level) {
+				continue;
+			}
+
 			layer[cell >> 1] = (byte) ((layer[cell >> 1] & ~(15 << shift)) | (level << shift));
 			changed = true;
 		}
-		if (!changed) return old;
 
-		layers.values().removeIf(layer -> { for (byte b : layer) if (b != 0) return false; return true; });
-		if (layers.isEmpty()) return null;
+		if (!changed) {
+			return old;
+		}
+
+		layers.values().removeIf(ChunkLevels::empty);
+
+		if (layers.isEmpty()) {
+			return null;
+		}
+
 		int[] ys = layers.keySet().stream().mapToInt(Integer::intValue).toArray();
 		byte[] data = new byte[ys.length * LAYER_BYTES];
 		int i = 0;
-		for (byte[] layer : layers.values()) System.arraycopy(layer, 0, data, i++ * LAYER_BYTES, LAYER_BYTES);
+
+		for (byte[] layer : layers.values()) {
+			System.arraycopy(layer, 0, data, i++ * LAYER_BYTES, LAYER_BYTES);
+		}
+
 		return new ChunkLevels(ys, data);
 	}
 
@@ -97,5 +136,15 @@ public final class ChunkLevels {
 		int[] out = Arrays.copyOf(a, a.length + b.length);
 		System.arraycopy(b, 0, out, a.length, b.length);
 		return out;
+	}
+
+	private static boolean empty(byte[] layer) {
+		for (byte b : layer) {
+			if (b != 0) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

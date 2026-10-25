@@ -2,18 +2,21 @@ package io.github.argent404.waterlevels;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.commands.Commands;
+
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.network.chat.Component;
+import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
 /**
  * {@code /waterlevels fill <level> <radius>}: sets the level of the top still water in every
  * column within the radius. Requires {@code waterlevels.fill}.
  */
 final class FillCommand {
-	private FillCommand() {}
+	private FillCommand() {
+	}
 
 	static void register() {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registry, environment) -> dispatcher.register(

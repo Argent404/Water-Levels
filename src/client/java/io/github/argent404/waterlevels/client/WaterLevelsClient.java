@@ -1,6 +1,19 @@
 package io.github.argent404.waterlevels.client;
 
 import io.github.argent404.waterlevels.WaterLevels;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -10,20 +23,8 @@ import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.core.BlockPos;
 
 public class WaterLevelsClient implements ClientModInitializer {
-
 	@Override
 	public void onInitializeClient() {
 		WandKeys.register();
@@ -35,12 +36,27 @@ public class WaterLevelsClient implements ClientModInitializer {
 		// (or mods like Axiom) handle them. Right-click applies, modifier + right-click cycles the level,
 		// left-click removes water.
 		ClientTickEvents.START_CLIENT_TICK.register(client -> {
-			if (client.player == null || client.screen != null || !client.player.getMainHandItem().is(WaterLevels.WATER_WAND)) return;
+			if (client.player == null || client.screen != null || !client.player.getMainHandItem().is(WaterLevels.WATER_WAND)) {
+				return;
+			}
+
 			boolean used = false, attacked = false;
-			while (client.options.keyUse.consumeClick()) used = true;
-			while (client.options.keyAttack.consumeClick()) attacked = true;
-			if (used) use(client);
-			if (attacked) remove(client);
+
+			while (client.options.keyUse.consumeClick()) {
+				used = true;
+			}
+
+			while (client.options.keyAttack.consumeClick()) {
+				attacked = true;
+			}
+
+			if (used) {
+				use(client);
+			}
+
+			if (attacked) {
+				remove(client);
+			}
 		});
 		// Cancel the vanilla use/attack/break that holding a button would otherwise trigger.
 		UseBlockCallback.EVENT.register((player, world, hand, hit) ->
@@ -67,7 +83,10 @@ public class WaterLevelsClient implements ClientModInitializer {
 	private static boolean helpShown;
 
 	static void help(Minecraft client) {
-		if (client.player == null) return;
+		if (client.player == null) {
+			return;
+		}
+
 		client.player.displayClientMessage(Component.literal("Right-click: water   Left-click: remove water   "
 				+ WandKeys.levelName() + " + right-click: level   " + WandKeys.radiusName() + " + scroll: radius"), true);
 	}
@@ -94,8 +113,13 @@ public class WaterLevelsClient implements ClientModInitializer {
 			show(client);
 			return;
 		}
+
 		BlockPos pos = target(client);
-		if (pos == null) return;
+
+		if (pos == null) {
+			return;
+		}
+
 		FriendlyByteBuf buf = PacketByteBufs.create();
 		buf.writeBlockPos(pos);
 		buf.writeByte(level);
@@ -106,7 +130,11 @@ public class WaterLevelsClient implements ClientModInitializer {
 
 	private static void remove(Minecraft client) {
 		BlockPos pos = target(client);
-		if (pos == null) return;
+
+		if (pos == null) {
+			return;
+		}
+
 		FriendlyByteBuf buf = PacketByteBufs.create();
 		buf.writeBlockPos(pos);
 		buf.writeByte(radius);
@@ -124,5 +152,4 @@ public class WaterLevelsClient implements ClientModInitializer {
 		String height = level == 0 ? "vanilla" : level + "/8";
 		client.player.displayClientMessage(Component.literal("Wand: " + height + ", radius " + radius), true);
 	}
-
 }

@@ -1,30 +1,31 @@
 package io.github.argent404.waterlevels;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.material.Fluids;
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.Registry;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
-
-import java.util.Map;
-import java.util.WeakHashMap;
 
 public class WaterLevels implements ModInitializer {
 	public static final String MOD_ID = "waterlevels";
@@ -57,7 +58,10 @@ public class WaterLevels implements ModInitializer {
 			int level = Mth.clamp(buf.readByte(), 0, 8);
 			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
 			server.execute(() -> {
-				if (!mayEdit(server, player, pos)) return;
+				if (!mayEdit(server, player, pos)) {
+					return;
+				}
+
 				if (Levels.apply(player.serverLevel(), pos, level, radius, p -> Protection.mayEdit(player, p))) {
 					player.playNotifySound(DRIP, SoundSource.BLOCKS, 1f, dripPitch(level));
 				} else if (!player.serverLevel().getFluidState(pos).is(Fluids.WATER)) {
@@ -94,16 +98,25 @@ public class WaterLevels implements ModInitializer {
 	 */
 	private static boolean mayEdit(MinecraftServer server, ServerPlayer player, BlockPos pos) {
 		Integer last = LAST_APPLY.put(player, server.getTickCount());
-		if (last != null && server.getTickCount() - last < 2) return false;
+
+		if (last != null && server.getTickCount() - last < 2) {
+			return false;
+		}
+
 		if (!Perms.check(player, Perms.WAND)) {
 			player.displayClientMessage(Component.literal("You don't have permission to change water levels."), true);
 			return false;
 		}
-		if (!holdsWand(player) || !player.getAbilities().mayBuild || !pos.closerToCenterThan(player.getEyePosition(), 8)) return false;
+
+		if (!holdsWand(player) || !player.getAbilities().mayBuild || !pos.closerToCenterThan(player.getEyePosition(), 8)) {
+			return false;
+		}
+
 		if (!Protection.mayEdit(player, pos)) {
 			player.displayClientMessage(Component.literal("You can't change water here."), true);
 			return false;
 		}
+
 		return true;
 	}
 
