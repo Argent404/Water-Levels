@@ -2,7 +2,7 @@ package io.github.argent404.waterlevels.mixin;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
-import io.github.argent404.waterlevels.Levels;
+import io.github.argent404.waterlevels.LevelData;
 import io.github.argent404.waterlevels.duck.WLChunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -19,13 +19,13 @@ import net.minecraft.world.level.chunk.storage.ChunkSerializer;
 public abstract class ChunkSerializerMixin {
 	@ModifyReturnValue(method = "write", at = @At("RETURN"))
 	private static CompoundTag waterlevels$save(CompoundTag nbt, @Local(argsOnly = true) ChunkAccess chunk) {
-		Levels.write(owner(chunk), nbt);
+		LevelData.write(owner(chunk), nbt);
 		return nbt;
 	}
 
 	@ModifyReturnValue(method = "read", at = @At("RETURN"))
 	private static ProtoChunk waterlevels$load(ProtoChunk chunk, @Local(argsOnly = true) CompoundTag nbt) {
-		((WLChunk) owner(chunk)).waterlevels$setLevels(Levels.read(nbt));
+		((WLChunk) owner(chunk)).waterlevels$setLevels(LevelData.read(nbt));
 		return chunk;
 	}
 

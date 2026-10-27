@@ -1,10 +1,10 @@
 package io.github.argent404.waterlevels.client;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.github.argent404.waterlevels.ChunkLevels;
-import io.github.argent404.waterlevels.Levels;
+import io.github.argent404.waterlevels.LevelData;
 import io.github.argent404.waterlevels.WaterLevels;
 import io.github.argent404.waterlevels.duck.WLChunk;
 
@@ -25,14 +25,17 @@ final class LevelSync {
 	private LevelSync() {
 	}
 
-	/** Levels received for chunks that haven't loaded yet, or are about to replace a Bobby copy. */
-	private static final Map<Long, ChunkLevels> waiting = new HashMap<>();
+	/**
+	 * Levels received for chunks that haven't loaded yet, or are about to replace a Bobby copy, oldest
+	 * first. Past {@link #MAX_WAITING} the oldest is dropped, and its chunk loads without levels until its next edit.
+	 */
+	private static final Map<Long, ChunkLevels> waiting = new LinkedHashMap<>();
 	private static final int MAX_WAITING = 8192;
 
 	static void register() {
 		ClientPlayNetworking.registerGlobalReceiver(WaterLevels.LEVELS_PACKET, (client, handler, buf, sender) -> {
 			ChunkPos pos = buf.readChunkPos();
-			ChunkLevels levels = Levels.receive(buf);
+			ChunkLevels levels = LevelData.receive(buf);
 			client.execute(() -> receive(client, pos, levels));
 		});
 
@@ -60,11 +63,13 @@ final class LevelSync {
 
 		// Not loaded yet, or a Bobby cached copy that the real chunk will replace.
 		if (chunk == null || isBobbyCopy(chunk)) {
-			if (waiting.size() >= MAX_WAITING) {
-				waiting.clear();
+			long key = pos.toLong();
+
+			if (waiting.size() >= MAX_WAITING && !waiting.containsKey(key)) {
+				waiting.remove(waiting.keySet().iterator().next());
 			}
 
-			waiting.put(pos.toLong(), after);
+			waiting.put(key, after);
 
 			if (chunk == null) {
 				return;

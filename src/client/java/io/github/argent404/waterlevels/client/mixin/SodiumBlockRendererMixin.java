@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public abstract class SodiumBlockRendererMixin {
 	@WrapOperation(method = "renderModel",
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/state/BlockState;hasOffsetFunction()Z", remap = true))
-	private boolean waterlevels$floats(BlockState state, Operation<Boolean> original) {
-		return original.call(state) || ((Floating) state).waterlevels$floats();
+	private boolean waterlevels$hasOffsetFunction(BlockState state, Operation<Boolean> original) {
+		return original.call(state) || ((Floating) state).waterlevels$isFloating();
 	}
 }

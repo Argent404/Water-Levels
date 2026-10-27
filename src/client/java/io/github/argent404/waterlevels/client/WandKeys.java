@@ -5,6 +5,7 @@ import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 
@@ -17,6 +18,8 @@ final class WandKeys {
 	}
 
 	private static final String CATEGORY = "key.categories.waterlevels";
+	private static final Component LEFT_CTRL = Component.translatable("key.keyboard.left.control");
+	private static final Component LEFT_SHIFT = Component.translatable("key.keyboard.left.shift");
 
 	static final KeyMapping RADIUS_MODIFIER = KeyBindingHelper.registerKeyBinding(
 			new KeyMapping("key.waterlevels.radius_modifier", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, CATEGORY));
@@ -29,24 +32,24 @@ final class WandKeys {
 	static void register() {
 	}
 
-	static boolean radiusModifier(Minecraft client) {
-		return isUnbound(RADIUS_MODIFIER) ? physical(client, GLFW.GLFW_KEY_LEFT_CONTROL) : held(client, RADIUS_MODIFIER);
+	static boolean isRadiusModifierHeld(Minecraft client) {
+		return isUnbound(RADIUS_MODIFIER) ? isKeyDown(client, GLFW.GLFW_KEY_LEFT_CONTROL) : isHeld(client, RADIUS_MODIFIER);
 	}
 
-	static boolean levelModifier(Minecraft client) {
-		return isUnbound(LEVEL_MODIFIER) ? physical(client, GLFW.GLFW_KEY_LEFT_SHIFT) : held(client, LEVEL_MODIFIER);
+	static boolean isLevelModifierHeld(Minecraft client) {
+		return isUnbound(LEVEL_MODIFIER) ? isKeyDown(client, GLFW.GLFW_KEY_LEFT_SHIFT) : isHeld(client, LEVEL_MODIFIER);
 	}
 
 	/** Key names for help text. */
-	static String radiusName() {
-		return isUnbound(RADIUS_MODIFIER) ? "Left Ctrl" : RADIUS_MODIFIER.getTranslatedKeyMessage().getString();
+	static Component radiusName() {
+		return isUnbound(RADIUS_MODIFIER) ? LEFT_CTRL : RADIUS_MODIFIER.getTranslatedKeyMessage();
 	}
 
-	static String levelName() {
-		return isUnbound(LEVEL_MODIFIER) ? "Left Shift" : LEVEL_MODIFIER.getTranslatedKeyMessage().getString();
+	static Component levelName() {
+		return isUnbound(LEVEL_MODIFIER) ? LEFT_SHIFT : LEVEL_MODIFIER.getTranslatedKeyMessage();
 	}
 
-	private static boolean physical(Minecraft client, int glfwKey) {
+	private static boolean isKeyDown(Minecraft client, int glfwKey) {
 		return InputConstants.isKeyDown(client.getWindow().getWindow(), glfwKey);
 	}
 
@@ -55,7 +58,7 @@ final class WandKeys {
 	}
 
 	/** Whether the key or mouse button bound to {@code binding} is held; false if unbound. */
-	private static boolean held(Minecraft client, KeyMapping binding) {
+	private static boolean isHeld(Minecraft client, KeyMapping binding) {
 		InputConstants.Key key = KeyBindingHelper.getBoundKeyOf(binding);
 
 		if (key.equals(InputConstants.UNKNOWN)) {
@@ -63,8 +66,11 @@ final class WandKeys {
 		}
 
 		long window = client.getWindow().getWindow();
-		return key.getType() == InputConstants.Type.MOUSE
-				? GLFW.glfwGetMouseButton(window, key.getValue()) == GLFW.GLFW_PRESS
-				: InputConstants.isKeyDown(window, key.getValue());
+
+		if (key.getType() == InputConstants.Type.MOUSE) {
+			return GLFW.glfwGetMouseButton(window, key.getValue()) == GLFW.GLFW_PRESS;
+		}
+
+		return InputConstants.isKeyDown(window, key.getValue());
 	}
 }

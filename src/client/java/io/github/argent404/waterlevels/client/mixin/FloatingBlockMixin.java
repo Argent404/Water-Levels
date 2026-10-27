@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import io.github.argent404.waterlevels.Levels;
 import io.github.argent404.waterlevels.client.Floating;
-import io.github.argent404.waterlevels.client.Floats;
+import io.github.argent404.waterlevels.client.FloatsTag;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,24 +24,29 @@ import net.minecraft.world.phys.Vec3;
  */
 @Mixin(BlockBehaviour.BlockStateBase.class)
 public abstract class FloatingBlockMixin implements Floating {
-	@Unique private int waterlevels$tagGeneration = -1;
-	@Unique private boolean waterlevels$floats;
+	/**
+	 * Tag generation times 2, plus 1 if the block floats; -1 until first asked. One field, because
+	 * Sodium's mesh threads read it and two fields could be seen half updated.
+	 */
+	@Unique private volatile int waterlevels$floatsCache = -1;
 
 	@Override
-	public boolean waterlevels$floats() {
-		int generation = Floats.generation();
+	public boolean waterlevels$isFloating() {
+		int generation = FloatsTag.generation();
+		int cache = waterlevels$floatsCache;
 
-		if (waterlevels$tagGeneration != generation) {
-			waterlevels$floats = ((BlockState) (Object) this).is(Floats.TAG);
-			waterlevels$tagGeneration = generation;
+		if (cache >> 1 != generation) {
+			boolean floats = ((BlockState) (Object) this).is(FloatsTag.TAG);
+			cache = generation << 1 | (floats ? 1 : 0);
+			waterlevels$floatsCache = cache;
 		}
 
-		return waterlevels$floats;
+		return (cache & 1) == 1;
 	}
 
 	@ModifyReturnValue(method = "getOffset", at = @At("RETURN"))
 	private Vec3 waterlevels$offset(Vec3 original, @Local(argsOnly = true) BlockGetter view, @Local(argsOnly = true) BlockPos pos) {
-		if (!waterlevels$floats()) {
+		if (!waterlevels$isFloating()) {
 			return original;
 		}
 

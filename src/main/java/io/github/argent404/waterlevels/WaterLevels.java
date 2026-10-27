@@ -38,6 +38,10 @@ public class WaterLevels implements ModInitializer {
 	public static final ResourceLocation REMOVE_PACKET = new ResourceLocation(MOD_ID, "remove");
 	public static final int MAX_RADIUS = 5;
 
+	private static final Component CANT_HOLD_WATER = Component.translatable("message.waterlevels.cant_hold_water");
+	private static final Component NO_PERMISSION = Component.translatable("message.waterlevels.no_permission");
+	private static final Component PROTECTED = Component.translatable("message.waterlevels.protected");
+
 	/** Feedback sound for wand edits, pitched by level. */
 	public static final SoundEvent DRIP = SoundEvent.createVariableRangeEvent(new ResourceLocation("minecraft", "block.pointed_dripstone.drip_water"));
 
@@ -58,14 +62,14 @@ public class WaterLevels implements ModInitializer {
 			int level = Mth.clamp(buf.readByte(), 0, 8);
 			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
 			server.execute(() -> {
-				if (!mayEdit(server, player, pos)) {
+				if (!acceptWandEdit(server, player, pos)) {
 					return;
 				}
 
-				if (Levels.apply(player.serverLevel(), pos, level, radius, p -> Protection.mayEdit(player, p))) {
+				if (LevelEdits.apply(player.serverLevel(), pos, level, radius, p -> Protection.mayEdit(player, p))) {
 					player.playNotifySound(DRIP, SoundSource.BLOCKS, 1f, dripPitch(level));
 				} else if (!player.serverLevel().getFluidState(pos).is(Fluids.WATER)) {
-					player.displayClientMessage(Component.literal("This block can't hold water"), true);
+					player.displayClientMessage(CANT_HOLD_WATER, true);
 				}
 			});
 		});
@@ -74,13 +78,17 @@ public class WaterLevels implements ModInitializer {
 			BlockPos pos = buf.readBlockPos();
 			int radius = Mth.clamp(buf.readByte(), 1, MAX_RADIUS);
 			server.execute(() -> {
-				if (mayEdit(server, player, pos) && Levels.waterlog(player.serverLevel(), pos, false, radius, p -> Protection.mayEdit(player, p)) > 0) {
+				if (!acceptWandEdit(server, player, pos)) {
+					return;
+				}
+
+				if (LevelEdits.waterlog(player.serverLevel(), pos, false, radius, p -> Protection.mayEdit(player, p)) > 0) {
 					player.playNotifySound(SoundEvents.BUCKET_FILL, SoundSource.BLOCKS, 0.6f, 1f);
 				}
 			});
 		});
 
-		ServerChunkEvents.CHUNK_LOAD.register(Levels::prune);
+		ServerChunkEvents.CHUNK_LOAD.register(LevelEdits::prune);
 
 		FillCommand.register();
 		WandCommand.register();
@@ -92,19 +100,14 @@ public class WaterLevels implements ModInitializer {
 	}
 
 	/**
-	 * Checks a wand edit: rate limit (one per player every 2 ticks), permission, holding the wand,
-	 * build rights, reach, and whether the player may edit the clicked block. Every other block the
+	 * Checks a wand edit: rate limit (one per player every 2 ticks), holding the wand, build rights,
+	 * reach, permission, and whether the player may edit the clicked block. Every other block the
 	 * brush reaches is checked again with {@link Protection#mayEdit}.
 	 */
-	private static boolean mayEdit(MinecraftServer server, ServerPlayer player, BlockPos pos) {
-		Integer last = LAST_APPLY.put(player, server.getTickCount());
+	private static boolean acceptWandEdit(MinecraftServer server, ServerPlayer player, BlockPos pos) {
+		Integer last = LAST_EDIT.put(player, server.getTickCount());
 
 		if (last != null && server.getTickCount() - last < 2) {
-			return false;
-		}
-
-		if (!Perms.check(player, Perms.WAND)) {
-			player.displayClientMessage(Component.literal("You don't have permission to change water levels."), true);
 			return false;
 		}
 
@@ -112,8 +115,13 @@ public class WaterLevels implements ModInitializer {
 			return false;
 		}
 
+		if (!Perms.check(player, Perms.WAND)) {
+			player.displayClientMessage(NO_PERMISSION, true);
+			return false;
+		}
+
 		if (!Protection.mayEdit(player, pos)) {
-			player.displayClientMessage(Component.literal("You can't change water here."), true);
+			player.displayClientMessage(PROTECTED, true);
 			return false;
 		}
 
@@ -121,7 +129,7 @@ public class WaterLevels implements ModInitializer {
 	}
 
 	/** Server tick of each player's last wand edit. */
-	private static final Map<ServerPlayer, Integer> LAST_APPLY = new WeakHashMap<>();
+	private static final Map<ServerPlayer, Integer> LAST_EDIT = new WeakHashMap<>();
 
 	public static boolean holdsWand(Player player) {
 		return player.getMainHandItem().is(WATER_WAND) || player.getOffhandItem().is(WATER_WAND);

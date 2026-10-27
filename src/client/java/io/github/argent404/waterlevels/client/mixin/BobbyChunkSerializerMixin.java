@@ -4,7 +4,7 @@ import java.util.function.Supplier;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
-import io.github.argent404.waterlevels.Levels;
+import io.github.argent404.waterlevels.LevelData;
 import io.github.argent404.waterlevels.duck.WLChunk;
 import org.apache.commons.lang3.tuple.Pair;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,7 +31,7 @@ public abstract class BobbyChunkSerializerMixin {
 
 	@ModifyReturnValue(method = "serialize", at = @At("RETURN"))
 	private static CompoundTag waterlevels$save(CompoundTag nbt, @Local(argsOnly = true) LevelChunk chunk) {
-		Levels.write(chunk, nbt);
+		LevelData.write(chunk, nbt);
 		return nbt;
 	}
 
@@ -44,7 +44,7 @@ public abstract class BobbyChunkSerializerMixin {
 
 		return () -> {
 			LevelChunk chunk = load.get();
-			((WLChunk) chunk).waterlevels$setLevels(Levels.read(nbt));
+			((WLChunk) chunk).waterlevels$setLevels(LevelData.read(nbt));
 			return chunk;
 		};
 	}

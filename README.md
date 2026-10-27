@@ -193,7 +193,7 @@ tile given a random level 1–8 (random levels compress worst) In situ layers wo
 
 | File | Job |
 |---|---|
-| `Levels` | The rule, lookups, editing, NBT format, sending |
+| `Levels`, `LevelEdits`, `LevelData` | The rule and lookups; editing; the NBT format and sending |
 | `WaterLevels` | The wand item and the server side of a wand click |
 | `WaterLevelsClient` | Wand clicks and receiving level data |
 | `MouseHandlerMixin` | Scroll wheel sets the wand radius |

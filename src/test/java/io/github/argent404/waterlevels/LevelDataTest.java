@@ -14,7 +14,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 
 /** The save format (chunk NBT) and the network format, without a running game. */
-class LevelsFormatTest {
+class LevelDataTest {
 	private static CompoundTag saved(String key, ChunkLevels levels) {
 		CompoundTag tag = new CompoundTag();
 		tag.putIntArray("Y", levels.ys);
@@ -27,7 +27,7 @@ class LevelsFormatTest {
 	@Test
 	void readsTheSavedFormat() {
 		ChunkLevels levels = ChunkLevels.with(null, List.of(new BlockPos(4, 62, 9)), 6);
-		ChunkLevels read = Levels.read(saved(Levels.NBT_KEY, levels));
+		ChunkLevels read = LevelData.read(saved(LevelData.NBT_KEY, levels));
 		assertEquals(6, read.get(4, 62, 9));
 		assertArrayEquals(levels.data, read.data);
 	}
@@ -35,12 +35,12 @@ class LevelsFormatTest {
 	@Test
 	void readsTheOldPartialWaterKey() {
 		ChunkLevels levels = ChunkLevels.with(null, List.of(new BlockPos(4, 62, 9)), 3);
-		assertEquals(3, Levels.read(saved("partialwater:levels", levels)).get(4, 62, 9));
+		assertEquals(3, LevelData.read(saved("partialwater:levels", levels)).get(4, 62, 9));
 	}
 
 	@Test
 	void chunksWithoutTheKeyHaveNoLevels() {
-		assertNull(Levels.read(new CompoundTag()));
+		assertNull(LevelData.read(new CompoundTag()));
 	}
 
 	@Test
@@ -49,8 +49,8 @@ class LevelsFormatTest {
 		tag.putIntArray("Y", new int[]{64});
 		tag.putByteArray("L", new byte[5]);
 		CompoundTag chunk = new CompoundTag();
-		chunk.put(Levels.NBT_KEY, tag);
-		assertNull(Levels.read(chunk));
+		chunk.put(LevelData.NBT_KEY, tag);
+		assertNull(LevelData.read(chunk));
 	}
 
 	@Test
@@ -59,7 +59,7 @@ class LevelsFormatTest {
 		FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 		buf.writeVarIntArray(levels.ys);
 		buf.writeByteArray(levels.data);
-		ChunkLevels received = Levels.receive(buf);
+		ChunkLevels received = LevelData.receive(buf);
 		assertEquals(8, received.get(0, 64, 0));
 		assertEquals(8, received.get(15, 100, 15));
 	}
@@ -69,6 +69,6 @@ class LevelsFormatTest {
 		FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 		buf.writeVarIntArray(new int[0]);
 		buf.writeByteArray(new byte[0]);
-		assertNull(Levels.receive(buf));
+		assertNull(LevelData.receive(buf));
 	}
 }

@@ -7,7 +7,7 @@ import java.util.TreeMap;
 import net.minecraft.core.BlockPos;
 
 /**
- * A chunk's water levels. Immutable: edits return a new instance.
+ * A chunk's water levels. Immutable: edits return a new instance, and nothing writes to the arrays.
  *
  * <p>Only Y layers that contain a level are stored. {@code ys} holds the layer heights in
  * ascending order and {@code data} holds 128 bytes per layer, two 4-bit levels per byte
@@ -24,10 +24,25 @@ public final class ChunkLevels {
 		this.data = data;
 	}
 
-	/** Wraps arrays read from disk or the network; null if malformed or empty. */
+	/**
+	 * Wraps arrays read from disk or the network. Null if empty or malformed: a size that doesn't
+	 * match, heights out of order or repeated, or a level above 8.
+	 */
 	public static ChunkLevels of(int[] ys, byte[] data) {
 		if (ys.length == 0 || data.length != ys.length * LAYER_BYTES) {
 			return null;
+		}
+
+		for (int i = 1; i < ys.length; i++) {
+			if (ys[i] <= ys[i - 1]) {
+				return null;
+			}
+		}
+
+		for (byte pair : data) {
+			if ((pair & 15) > 8 || (pair >> 4 & 15) > 8) {
+				return null;
+			}
 		}
 
 		return new ChunkLevels(ys, data);
@@ -44,14 +59,13 @@ public final class ChunkLevels {
 		return false;
 	}
 
-	/** The raw stored value at a block in this chunk (callers validate the 1-8 range). */
+	/** The stored level (1-8) at a block in this chunk, or 0. */
 	public int get(int x, int y, int z) {
 		int[] ys = this.ys;
 
 		for (int i = 0; i < ys.length; i++) {
 			if (ys[i] == y) {
-				int cell = ((z & 15) << 4) | (x & 15);
-				return (this.data[i * LAYER_BYTES + (cell >> 1)] >> ((cell & 1) << 2)) & 15;
+				return nibble(this.data, i * LAYER_BYTES, cell(x, z));
 			}
 		}
 
@@ -73,8 +87,10 @@ public final class ChunkLevels {
 				box = new int[]{x, z, x, z};
 			}
 
-			box[0] = Math.min(box[0], x); box[1] = Math.min(box[1], z);
-			box[2] = Math.max(box[2], x); box[3] = Math.max(box[3], z);
+			box[0] = Math.min(box[0], x);
+			box[1] = Math.min(box[1], z);
+			box[2] = Math.max(box[2], x);
+			box[3] = Math.max(box[3], z);
 		}
 
 		return box;
@@ -86,8 +102,12 @@ public final class ChunkLevels {
 		return Arrays.stream(concat(ya, yb)).distinct().toArray();
 	}
 
-	/** Returns a copy with {@code level} set at each position, {@code old} if nothing changed, or null if empty. */
+	/** Returns a copy with {@code level} (0-8, 0 clears) set at each position, {@code old} if nothing changed, or null if empty. */
 	public static ChunkLevels with(ChunkLevels old, List<BlockPos> positions, int level) {
+		if (level < 0 || level > 8) {
+			throw new IllegalArgumentException("level " + level + " is outside 0-8");
+		}
+
 		TreeMap<Integer, byte[]> layers = new TreeMap<>();
 
 		if (old != null) {
@@ -100,14 +120,13 @@ public final class ChunkLevels {
 
 		for (BlockPos pos : positions) {
 			byte[] layer = layers.computeIfAbsent(pos.getY(), y -> new byte[LAYER_BYTES]);
-			int cell = ((pos.getZ() & 15) << 4) | (pos.getX() & 15), shift = (cell & 1) << 2;
-			int current = (layer[cell >> 1] >> shift) & 15;
+			int cell = cell(pos.getX(), pos.getZ());
 
-			if (current == level) {
+			if (nibble(layer, 0, cell) == level) {
 				continue;
 			}
 
-			layer[cell >> 1] = (byte) ((layer[cell >> 1] & ~(15 << shift)) | (level << shift));
+			setNibble(layer, cell, level);
 			changed = true;
 		}
 
@@ -115,7 +134,7 @@ public final class ChunkLevels {
 			return old;
 		}
 
-		layers.values().removeIf(ChunkLevels::empty);
+		layers.values().removeIf(ChunkLevels::isEmpty);
 
 		if (layers.isEmpty()) {
 			return null;
@@ -132,13 +151,28 @@ public final class ChunkLevels {
 		return new ChunkLevels(ys, data);
 	}
 
+	/** A block's index within its layer, from 0 to 255: rows of 16 along x, one row per z. */
+	private static int cell(int x, int z) {
+		return ((z & 15) << 4) | (x & 15);
+	}
+
+	/** The level of a cell in the layer starting at {@code offset}. Two cells share a byte, even cells in the low 4 bits. */
+	private static int nibble(byte[] data, int offset, int cell) {
+		return (data[offset + (cell >> 1)] >> ((cell & 1) << 2)) & 15;
+	}
+
+	private static void setNibble(byte[] layer, int cell, int level) {
+		int shift = (cell & 1) << 2;
+		layer[cell >> 1] = (byte) ((layer[cell >> 1] & ~(15 << shift)) | (level << shift));
+	}
+
 	private static int[] concat(int[] a, int[] b) {
 		int[] out = Arrays.copyOf(a, a.length + b.length);
 		System.arraycopy(b, 0, out, a.length, b.length);
 		return out;
 	}
 
-	private static boolean empty(byte[] layer) {
+	private static boolean isEmpty(byte[] layer) {
 		for (byte b : layer) {
 			if (b != 0) {
 				return false;

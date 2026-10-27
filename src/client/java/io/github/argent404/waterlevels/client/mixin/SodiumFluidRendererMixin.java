@@ -41,13 +41,13 @@ public abstract class SodiumFluidRendererMixin {
 	@Unique private final BlockPos.MutableBlockPos waterlevels$pos = new BlockPos.MutableBlockPos();
 	@Unique private final BlockPos.MutableBlockPos waterlevels$center = new BlockPos.MutableBlockPos();
 	/** Whether any level is stored near this block; if not, every hook returns immediately. */
-	@Unique private boolean waterlevels$near = true;
+	@Unique private boolean waterlevels$isNearLevel = true;
 	/** Whether this surface, or one of its 8 neighbours, is leveled. */
 	@Unique private boolean waterlevels$leveled;
 	/** Whether leveled water sits one block up next to this block (a step). */
-	@Unique private boolean waterlevels$stepUp;
+	@Unique private boolean waterlevels$hasStepUp;
 	/** Lower water at least this high joins the step above it. */
-	@Unique private static final float WATERLEVELS_MEET = 0.8f;
+	@Unique private static final float WATERLEVELS_STEP_JOIN_HEIGHT = 0.8f;
 	/**
 	 * Lowest corner height returned. Sodium lowers exposed top corners by 0.001 and crashes on a
 	 * side face whose corners are both negative, so a corner must never be 0.
@@ -57,12 +57,12 @@ public abstract class SodiumFluidRendererMixin {
 	@Inject(method = "render", at = @At("HEAD"))
 	private void waterlevels$begin(CallbackInfo ci, @Local(argsOnly = true) FluidState fluidState, @Local(argsOnly = true, ordinal = 0) BlockPos blockPos) {
 		waterlevels$leveled = false;
-		waterlevels$stepUp = false;
+		waterlevels$hasStepUp = false;
 		Level world = Minecraft.getInstance().level;
 		int bx = blockPos.getX(), by = blockPos.getY(), bz = blockPos.getZ();
-		waterlevels$near = world != null && fluidState.is(FluidTags.WATER)
-				&& (Levels.layerNear(world, bx, by, bz) || Levels.layerNear(world, bx, by + 1, bz) || Levels.layerNear(world, bx, by - 1, bz));
-		if (!waterlevels$near) {
+		waterlevels$isNearLevel = world != null && fluidState.is(FluidTags.WATER)
+				&& (Levels.hasLayerNear(world, bx, by, bz) || Levels.hasLayerNear(world, bx, by + 1, bz) || Levels.hasLayerNear(world, bx, by - 1, bz));
+		if (!waterlevels$isNearLevel) {
 			return;
 		}
 
@@ -84,20 +84,20 @@ public abstract class SodiumFluidRendererMixin {
 		}
 
 		waterlevels$leveled = leveled;
-		boolean stepUp = false;
+		boolean hasStepUp = false;
 
-		for (int dx = -1; dx <= 1 && !stepUp; dx++) {
-			for (int dz = -1; dz <= 1 && !stepUp; dz++) {
-				stepUp = Levels.hasLevel(world, p.set(bx + dx, by + 1, bz + dz));
+		for (int dx = -1; dx <= 1 && !hasStepUp; dx++) {
+			for (int dz = -1; dz <= 1 && !hasStepUp; dz++) {
+				hasStepUp = Levels.hasLevel(world, p.set(bx + dx, by + 1, bz + dz));
 			}
 		}
 
-		waterlevels$stepUp = stepUp;
+		waterlevels$hasStepUp = hasStepUp;
 	}
 
 	@ModifyReturnValue(method = "fluidHeight", at = @At("RETURN"))
 	private float waterlevels$height(float original, @Local(argsOnly = true) Fluid fluid, @Local(argsOnly = true) BlockPos pos) {
-		if (!waterlevels$near) {
+		if (!waterlevels$isNearLevel) {
 			return original;
 		}
 
@@ -108,7 +108,7 @@ public abstract class SodiumFluidRendererMixin {
 	@Inject(method = "fluidCornerHeight", at = @At("HEAD"), cancellable = true)
 	private void waterlevels$corner(BlockAndTintGetter world, Fluid fluid, float own, float x, float y, BlockPos diagonal,
 			CallbackInfoReturnable<Float> cir) {
-		if (!waterlevels$leveled && !waterlevels$stepUp) {
+		if (!waterlevels$leveled && !waterlevels$hasStepUp) {
 			return;
 		}
 
@@ -132,7 +132,7 @@ public abstract class SodiumFluidRendererMixin {
 
 			float side = fluidHeight(world, fluid, p, Direction.UP);
 
-			if (waterlevels$stepUp && side <= 0 && Levels.hasLevel(Minecraft.getInstance().level, p.move(Direction.UP))) {
+			if (waterlevels$hasStepUp && side <= 0 && Levels.hasLevel(Minecraft.getInstance().level, p.move(Direction.UP))) {
 				cir.setReturnValue(1.0f); // lower side of a step
 				return;
 			}
@@ -152,7 +152,7 @@ public abstract class SodiumFluidRendererMixin {
 					continue;
 				}
 
-				if (fluidHeight(world, fluid, p.move(Direction.DOWN), Direction.UP) >= WATERLEVELS_MEET) {
+				if (fluidHeight(world, fluid, p.move(Direction.DOWN), Direction.UP) >= WATERLEVELS_STEP_JOIN_HEIGHT) {
 					cir.setReturnValue(WATERLEVELS_STEP_FLOOR); // upper side of a step
 					return;
 				}
@@ -211,16 +211,17 @@ public abstract class SodiumFluidRendererMixin {
 	}
 
 	/** Hides the top surface of water fully covered by its own block. */
-	@ModifyReturnValue(method = "isFluidOccluded", at = @At("RETURN"))
-	private boolean waterlevels$occluded(boolean occluded, @Local(argsOnly = true) BlockAndTintGetter world,
-			@Local(argsOnly = true, ordinal = 0) int x, @Local(argsOnly = true, ordinal = 1) int y,
-			@Local(argsOnly = true, ordinal = 2) int z, @Local(argsOnly = true) Direction dir,
-			@Local(argsOnly = true) Fluid fluid) {
-		if (!waterlevels$near || occluded || dir != Direction.UP) {
-			return occluded;
+	@Inject(method = "isFluidOccluded", at = @At("RETURN"), cancellable = true)
+	private void waterlevels$occluded(BlockAndTintGetter world, int x, int y, int z, Direction dir, Fluid fluid,
+			CallbackInfoReturnable<Boolean> cir) {
+		if (!waterlevels$isNearLevel || cir.getReturnValueZ() || dir != Direction.UP) {
+			return;
 		}
 
 		BlockPos pos = waterlevels$pos.set(x, y, z);
-		return Levels.surfaceHidden(fluid, Minecraft.getInstance().level, pos, world.getBlockState(pos), world);
+
+		if (Levels.isSurfaceHidden(fluid, Minecraft.getInstance().level, pos, world.getBlockState(pos), world)) {
+			cir.setReturnValue(true);
+		}
 	}
 }

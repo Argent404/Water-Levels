@@ -21,11 +21,12 @@ public abstract class MouseHandlerMixin {
 
 	@Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
 	private void waterlevels$radius(long window, double horizontal, double vertical, CallbackInfo ci) {
-		if (vertical == 0 || minecraft.screen != null || minecraft.player == null || !WaterLevelsClient.radiusModifierHeld(minecraft)) {
-			return;
-		}
-
-		if (!minecraft.player.getMainHandItem().is(WaterLevels.WATER_WAND)) {
+		// The key poll asks GLFW, so it goes last.
+		if (vertical == 0
+				|| minecraft.screen != null
+				|| minecraft.player == null
+				|| !minecraft.player.getMainHandItem().is(WaterLevels.WATER_WAND)
+				|| !WaterLevelsClient.radiusModifierHeld(minecraft)) {
 			return;
 		}
 

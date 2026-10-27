@@ -14,6 +14,8 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
  * The held item moves to a free slot; if there is none, nothing changes. Requires {@code waterlevels.wand}.
  */
 final class WandCommand {
+	private static final Component INVENTORY_FULL = Component.translatable("message.waterlevels.inventory_full");
+
 	private WandCommand() {
 	}
 
@@ -45,7 +47,7 @@ final class WandCommand {
 			}
 
 			if (free < 0) {
-				player.displayClientMessage(Component.literal("Your inventory is full."), true);
+				player.displayClientMessage(INVENTORY_FULL, true);
 				return false;
 			}
 		}

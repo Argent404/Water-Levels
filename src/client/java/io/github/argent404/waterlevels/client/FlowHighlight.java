@@ -19,6 +19,7 @@ import io.github.argent404.waterlevels.WaterLevels;
 import org.joml.Matrix4f;
 import org.lwjgl.opengl.GL11;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -65,10 +66,10 @@ final class FlowHighlight {
 		static final Drawn EMPTY = new Drawn(List.of(), new double[0], new float[0]);
 	}
 
-	private static final int RADIUS = 30, UP = 8, DOWN = 60, MAX_OUTLINES = 12000, RESCAN_TICKS = 10;
+	private static final int SCAN_RADIUS = 30, SCAN_UP = 8, SCAN_DOWN = 60, MAX_OUTLINES = 12000, RESCAN_TICKS = 10;
 	/** Below this depth, only water open to the sky is outlined. */
 	private static final int OPEN_SKY_BELOW = 30;
-	private static final int LAYERS = UP + DOWN + 1, LAYERS_PER_TICK = (LAYERS + RESCAN_TICKS - 1) / RESCAN_TICKS;
+	private static final int LAYERS = SCAN_UP + SCAN_DOWN + 1, LAYERS_PER_TICK = (LAYERS + RESCAN_TICKS - 1) / RESCAN_TICKS;
 	/** Outline height: one pixel into the block above the water. */
 	private static final float OUTLINE_HEIGHT = 1 + 1 / 32f;
 	/** Alpha of lines behind terrain. */
@@ -76,8 +77,12 @@ final class FlowHighlight {
 	/** Level numbers are only drawn within this distance. */
 	private static final double LABEL_DISTANCE = 12;
 
-	private static final String FLOW_LEGEND = "  §6orange§r = flowing, §eyellow§r = still but sloping";
-	private static final String LEVELS_LEGEND = "  numbers = level in eighths (§2darker§r = lower), §1dark blue§r = vanilla";
+	private static final Component FLOW_LEGEND = Component.translatable("message.waterlevels.outlines.flow_legend",
+			Component.translatable("message.waterlevels.outlines.orange").withStyle(ChatFormatting.GOLD),
+			Component.translatable("message.waterlevels.outlines.yellow").withStyle(ChatFormatting.YELLOW));
+	private static final Component LEVELS_LEGEND = Component.translatable("message.waterlevels.outlines.levels_legend",
+			Component.translatable("message.waterlevels.outlines.darker").withStyle(ChatFormatting.DARK_GREEN),
+			Component.translatable("message.waterlevels.outlines.dark_blue").withStyle(ChatFormatting.DARK_BLUE));
 
 	private static final float[] ORANGE = {1f, 0.45f, 0.1f}, YELLOW = {1f, 0.9f, 0.1f}, DARK_BLUE = {0.15f, 0.35f, 0.8f};
 
@@ -98,8 +103,7 @@ final class FlowHighlight {
 	private static List<Outline> pending;
 	private static BlockPos pendingCenter;
 	private static int pendingLayer;
-	/** Whether outlines were active last tick. */
-	private static boolean active;
+	private static boolean wasActive;
 	/** Modes whose colour legend was already shown this session. */
 	private static final Set<Mode> explained = EnumSet.noneOf(Mode.class);
 
@@ -114,19 +118,22 @@ final class FlowHighlight {
 
 				drawn = mode == Mode.OFF ? Drawn.EMPTY : build(scanAll(client));
 				pending = null;
-				active = mode != Mode.OFF && WaterLevels.holdsWand(client.player);
+				wasActive = mode != Mode.OFF && WaterLevels.holdsWand(client.player);
 				announce(client);
 			}
 
-			if (mode == Mode.OFF || client.player == null || client.level == null || !WaterLevels.holdsWand(client.player)) {
+			if (mode == Mode.OFF
+					|| client.player == null
+					|| client.level == null
+					|| !WaterLevels.holdsWand(client.player)) {
 				drawn = Drawn.EMPTY;
 				pending = null;
-				active = false;
+				wasActive = false;
 				return;
 			}
 
-			if (!active) {
-				active = true;
+			if (!wasActive) {
+				wasActive = true;
 				drawn = build(scanAll(client)); // show something immediately
 				startScan(client);
 				return;
@@ -137,7 +144,7 @@ final class FlowHighlight {
 			}
 
 			for (int i = 0; i < LAYERS_PER_TICK && pending != null; i++) {
-				scanLayer(client.level, pendingCenter, UP - pendingLayer, pending);
+				scanLayer(client.level, pendingCenter, SCAN_UP - pendingLayer, pending);
 
 				if (++pendingLayer >= LAYERS) {
 					drawn = build(pending);
@@ -164,9 +171,9 @@ final class FlowHighlight {
 			RenderSystem.depthMask(false);
 			RenderSystem.lineWidth(2f);
 			RenderSystem.depthFunc(GL11.GL_LEQUAL);
-			lines(current, m, cam, 1f);
+			drawLines(current, m, cam, 1f);
 			RenderSystem.depthFunc(GL11.GL_GREATER);
-			lines(current, m, cam, HIDDEN_ALPHA);
+			drawLines(current, m, cam, HIDDEN_ALPHA);
 			RenderSystem.depthFunc(GL11.GL_LEQUAL);
 			RenderSystem.lineWidth(1f);
 			RenderSystem.depthMask(true);
@@ -179,7 +186,7 @@ final class FlowHighlight {
 			Drawn current = drawn;
 
 			if (mode == Mode.VIEW_LEVELS && !current.tiles().isEmpty()) {
-				labels(context, current, context.camera().getPosition());
+				drawLabels(context, current, context.camera().getPosition());
 			}
 		});
 	}
@@ -195,7 +202,7 @@ final class FlowHighlight {
 	private static BufferBuilder builder;
 	private static final float NUDGE = 1 - 0.0008f;
 
-	private static void lines(Drawn d, Matrix4f m, Vec3 cam, float alpha) {
+	private static void drawLines(Drawn d, Matrix4f m, Vec3 cam, float alpha) {
 		if (d != uploaded) {
 			upload(d);
 		}
@@ -238,11 +245,11 @@ final class FlowHighlight {
 	}
 
 	/** Draws each leveled tile's number above it, facing the camera. */
-	private static void labels(WorldRenderContext context, Drawn d, Vec3 cam) {
+	private static void drawLabels(WorldRenderContext context, Drawn d, Vec3 cam) {
 		Minecraft client = Minecraft.getInstance();
 		Font text = client.font;
-		MultiBufferSource.BufferSource consumers = client.renderBuffers().bufferSource();
-		PoseStack matrices = context.matrixStack();
+		MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+		PoseStack poseStack = context.matrixStack();
 
 		for (Outline o : d.tiles()) {
 			if (o.level() == 0) {
@@ -255,17 +262,17 @@ final class FlowHighlight {
 				continue;
 			}
 
-			matrices.pushPose();
-			matrices.translate(x - cam.x, y - cam.y, z - cam.z);
-			matrices.mulPose(context.camera().rotation());
-			matrices.scale(-0.02f, -0.02f, 0.02f);
+			poseStack.pushPose();
+			poseStack.translate(x - cam.x, y - cam.y, z - cam.z);
+			poseStack.mulPose(context.camera().rotation());
+			poseStack.scale(-0.02f, -0.02f, 0.02f);
 			String s = Integer.toString(o.level());
-			text.drawInBatch(s, -text.width(s) / 2f, -4, 0xFFFFFFFF, false, matrices.last().pose(), consumers,
+			text.drawInBatch(s, -text.width(s) / 2f, -4, 0xFFFFFFFF, false, poseStack.last().pose(), bufferSource,
 					Font.DisplayMode.NORMAL, 0x60000000, LightTexture.FULL_BRIGHT);
-			matrices.popPose();
+			poseStack.popPose();
 		}
 
-		consumers.endBatch();
+		bufferSource.endBatch();
 	}
 
 	/**
@@ -290,32 +297,36 @@ final class FlowHighlight {
 		for (Outline o : tiles) {
 			int x = o.x(), z = o.z();
 			double y = o.y() + OUTLINE_HEIGHT;
-			n = segment(lines, colors, n, o, x, y, z, x + 1, z); // north
-			n = segment(lines, colors, n, o, x, y, z, x, z + 1); // west
+			n = addSegment(lines, colors, n, o, x, y, z, x + 1, z); // north
+			n = addSegment(lines, colors, n, o, x, y, z, x, z + 1); // west
 			Outline south = at.get(BlockPos.asLong(x, o.y(), z + 1));
 			Outline east = at.get(BlockPos.asLong(x + 1, o.y(), z));
 
-			if (!same(o, south)) {
-				n = segment(lines, colors, n, o, x, y, z + 1, x + 1, z + 1);
+			if (!isSameColour(o, south)) {
+				n = addSegment(lines, colors, n, o, x, y, z + 1, x + 1, z + 1);
 			}
 
-			if (!same(o, east)) {
-				n = segment(lines, colors, n, o, x + 1, y, z, x + 1, z + 1);
+			if (!isSameColour(o, east)) {
+				n = addSegment(lines, colors, n, o, x + 1, y, z, x + 1, z + 1);
 			}
 		}
 
 		return new Drawn(tiles, Arrays.copyOf(lines, n * 6), Arrays.copyOf(colors, n * 3));
 	}
 
-	private static int segment(double[] lines, float[] colors, int n, Outline o, double x0, double y, double z0, double x1, double z1) {
+	private static int addSegment(double[] lines, float[] colors, int n, Outline o, double x0, double y, double z0, double x1, double z1) {
 		int l = n * 6, c = n * 3;
-		lines[l] = x0; lines[l + 1] = y; lines[l + 2] = z0;
-		lines[l + 3] = x1; lines[l + 4] = y; lines[l + 5] = z1;
-		colors[c] = o.rgb()[0]; colors[c + 1] = o.rgb()[1]; colors[c + 2] = o.rgb()[2];
+		lines[l] = x0;
+		lines[l + 1] = y;
+		lines[l + 2] = z0;
+		lines[l + 3] = x1;
+		lines[l + 4] = y;
+		lines[l + 5] = z1;
+		System.arraycopy(o.rgb(), 0, colors, c, 3);
 		return n + 1;
 	}
 
-	private static boolean same(Outline a, Outline b) {
+	private static boolean isSameColour(Outline a, Outline b) {
 		return b != null && a.rgb() == b.rgb();
 	}
 
@@ -323,12 +334,12 @@ final class FlowHighlight {
 	private static void announce(Minecraft client) {
 		int count = drawn.tiles().size();
 		boolean first = explained.add(mode);
-		String bar = switch (mode) {
-			case OFF -> "Water outlines: off";
-			case FLOW -> "Water outlines: flow view (" + count + ")" + (first ? FLOW_LEGEND : "");
-			case VIEW_LEVELS -> "Water outlines: level view (" + count + ")" + (first ? LEVELS_LEGEND : "");
+		Component bar = switch (mode) {
+			case OFF -> Component.translatable("message.waterlevels.outlines.off");
+			case FLOW -> Component.translatable("message.waterlevels.outlines.flow", count).append(first ? FLOW_LEGEND : Component.empty());
+			case VIEW_LEVELS -> Component.translatable("message.waterlevels.outlines.levels", count).append(first ? LEVELS_LEGEND : Component.empty());
 		};
-		client.player.displayClientMessage(Component.literal(bar), true);
+		client.player.displayClientMessage(bar, true);
 	}
 
 	private static void startScan(Minecraft client) {
@@ -341,7 +352,7 @@ final class FlowHighlight {
 		List<Outline> out = new ArrayList<>();
 		BlockPos center = client.player.blockPosition();
 
-		for (int dy = UP; dy >= -DOWN; dy--) {
+		for (int dy = SCAN_UP; dy >= -SCAN_DOWN; dy--) {
 			scanLayer(client.level, center, dy, out);
 		}
 
@@ -352,8 +363,8 @@ final class FlowHighlight {
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(), other = new BlockPos.MutableBlockPos();
 		int y = center.getY() + dy;
 
-		for (int dx = -RADIUS; dx <= RADIUS; dx++) {
-			for (int dz = -RADIUS; dz <= RADIUS; dz++) {
+		for (int dx = -SCAN_RADIUS; dx <= SCAN_RADIUS; dx++) {
+			for (int dz = -SCAN_RADIUS; dz <= SCAN_RADIUS; dz++) {
 				if (out.size() >= MAX_OUTLINES) {
 					return;
 				}
@@ -370,7 +381,7 @@ final class FlowHighlight {
 					continue;
 				}
 
-				if (buried(world, pos, other)) {
+				if (isBuried(world, pos, other)) {
 					continue;
 				}
 
@@ -390,7 +401,7 @@ final class FlowHighlight {
 	}
 
 	/** Whether the block above and all four sides are full blocks. */
-	private static boolean buried(ClientLevel world, BlockPos pos, BlockPos.MutableBlockPos other) {
+	private static boolean isBuried(ClientLevel world, BlockPos pos, BlockPos.MutableBlockPos other) {
 		if (!world.getBlockState(other.setWithOffset(pos, Direction.UP)).isSolidRender(world, other)) {
 			return false;
 		}
@@ -412,7 +423,7 @@ final class FlowHighlight {
 					return of(pos, ORANGE, 0);
 				}
 
-				return slopes(world, pos, height(world, pos, level), other) ? of(pos, YELLOW, 0) : null;
+				return isSloping(world, pos, height(world, pos, level), other) ? of(pos, YELLOW, 0) : null;
 			}
 			case VIEW_LEVELS -> {
 				if (!fluid.isSource()) {
@@ -438,7 +449,7 @@ final class FlowHighlight {
 	}
 
 	/** Whether still water slopes: a neighbour at a different height, or water above a neighbour. */
-	private static boolean slopes(ClientLevel world, BlockPos pos, float own, BlockPos.MutableBlockPos other) {
+	private static boolean isSloping(ClientLevel world, BlockPos pos, float own, BlockPos.MutableBlockPos other) {
 		for (int dx = -1; dx <= 1; dx++) {
 			for (int dz = -1; dz <= 1; dz++) {
 				if (dx == 0 && dz == 0) {
@@ -446,9 +457,9 @@ final class FlowHighlight {
 				}
 
 				other.set(pos.getX() + dx, pos.getY(), pos.getZ() + dz);
-				FluidState n = world.getFluidState(other);
+				FluidState neighbour = world.getFluidState(other);
 
-				if (n.isEmpty() || !n.is(FluidTags.WATER)) {
+				if (neighbour.isEmpty() || !neighbour.is(FluidTags.WATER)) {
 					continue;
 				}
 

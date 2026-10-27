@@ -8,8 +8,8 @@ import net.minecraft.world.level.block.Block;
 import net.fabricmc.fabric.api.event.lifecycle.v1.CommonLifecycleEvents;
 
 /** The {@code #waterlevels:floats} block tag. Block states cache membership until tags reload. */
-public final class Floats {
-	private Floats() {
+public final class FloatsTag {
+	private FloatsTag() {
 	}
 
 	public static final TagKey<Block> TAG = TagKey.create(Registries.BLOCK, new ResourceLocation("waterlevels", "floats"));

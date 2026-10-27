@@ -11,6 +11,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -28,7 +29,7 @@ public class WaterLevelsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		WandKeys.register();
-		Floats.register();
+		FloatsTag.register();
 		FlowHighlight.register();
 		LevelSync.register();
 
@@ -61,8 +62,11 @@ public class WaterLevelsClient implements ClientModInitializer {
 		// Cancel the vanilla use/attack/break that holding a button would otherwise trigger.
 		UseBlockCallback.EVENT.register((player, world, hand, hit) ->
 				world.isClientSide && player.getItemInHand(hand).is(WaterLevels.WATER_WAND) ? InteractionResult.CONSUME : InteractionResult.PASS);
-		UseItemCallback.EVENT.register((player, world, hand) -> world.isClientSide && player.getItemInHand(hand).is(WaterLevels.WATER_WAND)
-				? InteractionResultHolder.consume(player.getItemInHand(hand)) : InteractionResultHolder.pass(player.getItemInHand(hand)));
+		UseItemCallback.EVENT.register((player, world, hand) -> {
+			ItemStack stack = player.getItemInHand(hand);
+			boolean usingWand = world.isClientSide && stack.is(WaterLevels.WATER_WAND);
+			return usingWand ? InteractionResultHolder.consume(stack) : InteractionResultHolder.pass(stack);
+		});
 		AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) ->
 				world.isClientSide && player.getMainHandItem().is(WaterLevels.WATER_WAND) ? InteractionResult.FAIL : InteractionResult.PASS);
 
@@ -87,8 +91,7 @@ public class WaterLevelsClient implements ClientModInitializer {
 			return;
 		}
 
-		client.player.displayClientMessage(Component.literal("Right-click: water   Left-click: remove water   "
-				+ WandKeys.levelName() + " + right-click: level   " + WandKeys.radiusName() + " + scroll: radius"), true);
+		client.player.displayClientMessage(Component.translatable("message.waterlevels.help", WandKeys.levelName(), WandKeys.radiusName()), true);
 	}
 
 	/** Wand settings, kept on the client so creative mode can't overwrite them. */
@@ -103,11 +106,11 @@ public class WaterLevelsClient implements ClientModInitializer {
 
 	/** Called by {@code MouseHandlerMixin}. */
 	public static boolean radiusModifierHeld(Minecraft client) {
-		return WandKeys.radiusModifier(client);
+		return WandKeys.isRadiusModifierHeld(client);
 	}
 
 	private static void use(Minecraft client) {
-		if (WandKeys.levelModifier(client)) {
+		if (WandKeys.isLevelModifierHeld(client)) {
 			level = (level + 1) % 9;
 			client.getSoundManager().play(SimpleSoundInstance.forUI(WaterLevels.DRIP, WaterLevels.dripPitch(level)));
 			show(client);
@@ -149,7 +152,12 @@ public class WaterLevelsClient implements ClientModInitializer {
 	}
 
 	private static void show(Minecraft client) {
-		String height = level == 0 ? "vanilla" : level + "/8";
-		client.player.displayClientMessage(Component.literal("Wand: " + height + ", radius " + radius), true);
+		Component status = Component.translatable("message.waterlevels.wand", level, radius);
+
+		if (level == 0) {
+			status = Component.translatable("message.waterlevels.wand_vanilla", radius);
+		}
+
+		client.player.displayClientMessage(status, true);
 	}
 }

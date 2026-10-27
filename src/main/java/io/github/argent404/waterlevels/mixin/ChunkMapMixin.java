@@ -1,6 +1,6 @@
 package io.github.argent404.waterlevels.mixin;
 
-import io.github.argent404.waterlevels.Levels;
+import io.github.argent404.waterlevels.LevelData;
 import io.github.argent404.waterlevels.duck.WLChunk;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.spongepowered.asm.mixin.Mixin;
@@ -23,7 +23,7 @@ public abstract class ChunkMapMixin {
 	private void waterlevels$sendLevels(ServerPlayer player, MutableObject<ClientboundLevelChunkWithLightPacket> packet,
 			LevelChunk chunk, CallbackInfo ci) {
 		if (((WLChunk) chunk).waterlevels$levels() != null) {
-			Levels.send(player, chunk);
+			LevelData.send(player, chunk);
 		}
 	}
 }

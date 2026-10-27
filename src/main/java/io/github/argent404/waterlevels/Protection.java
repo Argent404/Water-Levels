@@ -27,10 +27,10 @@ public final class Protection {
 	}
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(WaterLevels.MOD_ID);
-	private static final boolean PLOTS = FabricLoader.getInstance().isModLoaded("plotsquared-fabric");
+	private static final boolean PLOTS_LOADED = FabricLoader.getInstance().isModLoaded("plotsquared-fabric");
 	private static Field platform, listener;
 	private static Method check;
-	private static boolean broken;
+	private static boolean isPlotsCheckBroken;
 
 	/** Whether {@code player} may change the block at {@code pos}. */
 	public static boolean mayEdit(ServerPlayer player, BlockPos pos) {
@@ -40,12 +40,12 @@ public final class Protection {
 			return false;
 		}
 
-		return !PLOTS || plotsAllow(player, world, pos);
+		return !PLOTS_LOADED || plotsAllow(player, world, pos);
 	}
 
 	/** Fails closed: if the PlotSquared check can't be reached, nothing is edited while it is installed. */
 	private static boolean plotsAllow(ServerPlayer player, ServerLevel world, BlockPos pos) {
-		if (broken) {
+		if (isPlotsCheckBroken) {
 			return false;
 		}
 
@@ -69,7 +69,7 @@ public final class Protection {
 			Object instance = listener.get(platform.get(null));
 			return check.invoke(instance, player, world, pos, world.getBlockState(pos), null) != InteractionResult.FAIL;
 		} catch (ReflectiveOperationException | RuntimeException e) {
-			broken = true;
+			isPlotsCheckBroken = true;
 			LOGGER.error("Water Levels: can't reach PlotSquared's build check; wand edits are disabled while PlotSquared is installed", e);
 			return false;
 		}

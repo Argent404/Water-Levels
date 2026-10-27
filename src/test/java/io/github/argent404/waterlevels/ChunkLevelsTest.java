@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -90,6 +91,23 @@ class ChunkLevelsTest {
 		assertNull(ChunkLevels.of(new int[0], new byte[0]));
 		assertNull(ChunkLevels.of(new int[]{64}, new byte[ChunkLevels.LAYER_BYTES - 1]));
 		assertNull(ChunkLevels.of(new int[]{64, 65}, new byte[ChunkLevels.LAYER_BYTES]));
+	}
+
+	@Test
+	void rejectsHeightsOutOfOrderOrRepeated() {
+		assertNull(ChunkLevels.of(new int[]{65, 64}, new byte[2 * ChunkLevels.LAYER_BYTES]));
+		assertNull(ChunkLevels.of(new int[]{64, 64}, new byte[2 * ChunkLevels.LAYER_BYTES]));
+	}
+
+	@Test
+	void rejectsLevelsAboveEight() {
+		byte[] lowCell = new byte[ChunkLevels.LAYER_BYTES];
+		lowCell[0] = 9;
+		byte[] highCell = new byte[ChunkLevels.LAYER_BYTES];
+		highCell[0] = (byte) 0x90;
+		assertNull(ChunkLevels.of(new int[]{64}, lowCell));
+		assertNull(ChunkLevels.of(new int[]{64}, highCell));
+		assertThrows(IllegalArgumentException.class, () -> ChunkLevels.with(null, List.of(BlockPos.ZERO), 9));
 	}
 
 	@Test

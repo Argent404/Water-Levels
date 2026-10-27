@@ -32,9 +32,16 @@ final class FillCommand {
 		CommandSourceStack source = context.getSource();
 		int level = IntegerArgumentType.getInteger(context, "level");
 		int radius = IntegerArgumentType.getInteger(context, "radius");
-		int[] result = Levels.fill(source.getLevel(), BlockPos.containing(source.getPosition()), level, radius);
-		String skipped = result[1] > 0 ? ", skipped " + result[1] + " columns in unloaded chunks" : "";
-		source.sendSuccess(() -> Component.literal("Changed " + result[0] + " water columns" + skipped), true);
+		int[] result = LevelEdits.fill(source.getLevel(), BlockPos.containing(source.getPosition()), level, radius);
+		source.sendSuccess(() -> message(result[0], result[1]), true);
 		return result[0];
+	}
+
+	private static Component message(int changed, int unloaded) {
+		if (unloaded > 0) {
+			return Component.translatable("commands.waterlevels.fill.skipped", changed, unloaded);
+		}
+
+		return Component.translatable("commands.waterlevels.fill", changed);
 	}
 }
